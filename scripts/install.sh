@@ -27,19 +27,27 @@ fi
 
 # Download latest release
 echo "Downloading latest build..."
-if ! gh release download latest --repo "$REPO" --pattern "Deck.zip" --dir "$TMP_DIR" 2>/dev/null; then
+if ! gh release download latest --repo "$REPO" --pattern "Deck*.zip" --dir "$TMP_DIR" 2>/dev/null; then
+    # Try the versioned release
+    if ! gh release download --repo "$REPO" --pattern "Deck*.zip" --dir "$TMP_DIR" 2>/dev/null; then
     # Fallback: try curl with GitHub API
-    DOWNLOAD_URL=$(curl -sL "https://api.github.com/repos/$REPO/releases/tags/latest" | grep "browser_download_url.*Deck.zip" | head -1 | cut -d '"' -f 4)
+    DOWNLOAD_URL=$(curl -sL "https://api.github.com/repos/$REPO/releases/latest" | grep "browser_download_url.*Deck.*zip" | head -1 | cut -d '"' -f 4)
     if [ -z "$DOWNLOAD_URL" ]; then
         echo "Error: No release found. Push to main first to trigger a build."
         exit 1
     fi
     curl -sL "$DOWNLOAD_URL" -o "$TMP_DIR/Deck.zip"
+    fi
 fi
 
-# Unzip
+# Unzip — find whatever zip was downloaded
 echo "Extracting..."
-unzip -qo "$TMP_DIR/Deck.zip" -d "$TMP_DIR"
+ZIPFILE=$(find "$TMP_DIR" -name "Deck*.zip" | head -1)
+if [ -z "$ZIPFILE" ]; then
+    echo "Error: No zip file found."
+    exit 1
+fi
+unzip -qo "$ZIPFILE" -d "$TMP_DIR"
 
 # Quit running instance
 if pgrep -x Deck > /dev/null 2>&1; then
