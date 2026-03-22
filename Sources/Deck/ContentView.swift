@@ -128,18 +128,30 @@ struct ContentView: View {
         }
         .frame(width: 44)
         .background(theme.surfaces.inset.swiftUIColor)
+        .overlay(
+            Rectangle().frame(width: 1).foregroundStyle(theme.borders.subtle.swiftUIColor),
+            alignment: .trailing
+        )
     }
 
     private func collapsedSessionIcon(_ session: Session) -> some View {
         let isActive = session.id == sessionManager.activeSessionId
+        let brandColor: Color = {
+            switch session.agentType {
+            case .claude: return Color(red: 0.95, green: 0.60, blue: 0.30)
+            case .amp: return Color(red: 0.55, green: 0.85, blue: 0.80)
+            case .shell: return theme.text.secondary.swiftUIColor
+            }
+        }()
         return CollapsedSessionButton(
             session: session,
             isActive: isActive,
             theme: theme,
             onSelect: { sessionManager.switchToSession(id: session.id) }
         ) {
-            agentIconView(session.agentType, isActive: isActive)
-                .frame(width: 16, height: 16)
+            Image(systemName: session.agentType.iconName)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(brandColor)
         }
     }
 
