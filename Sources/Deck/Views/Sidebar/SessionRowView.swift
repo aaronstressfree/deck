@@ -52,14 +52,18 @@ struct SessionRowView: View {
             VStack(alignment: .leading, spacing: 2) {
                 // Line 1: Session name
                 if isEditing {
-                    TextField("Name", text: $editName, onCommit: {
-                        // Set manual name; empty = clear manual name (revert to AI name)
-                        onRename(editName.trimmingCharacters(in: .whitespaces))
-                        isEditing = false
-                    })
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 14))
-                    .foregroundStyle(theme.text.primary.swiftUIColor)
+                    TextField("Name", text: $editName)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 14))
+                        .foregroundStyle(theme.text.primary.swiftUIColor)
+                        .onSubmit { commitRename() }
+                        .onExitCommand { isEditing = false }
+                        .onAppear {
+                            // Auto-select text on edit start
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                NSApp.keyWindow?.makeFirstResponder(nil)
+                            }
+                        }
                 } else {
                     Text(session.displayName)
                         .font(.system(size: 14))
@@ -148,6 +152,12 @@ struct SessionRowView: View {
         } message: {
             Text("Close \"\(session.displayName)\"? This will end the running process.")
         }
+    }
+
+    private func commitRename() {
+        let trimmed = editName.trimmingCharacters(in: .whitespaces)
+        onRename(trimmed)
+        isEditing = false
     }
 
     private var statusSummary: String {

@@ -32,9 +32,9 @@ struct SessionGroupView: View {
             // Project header
             projectHeader
 
-            // Sessions when expanded
+            // Sessions when expanded — each row is a drop target for reorder
             if !group.isCollapsed {
-                ForEach(sessions) { session in
+                ForEach(Array(sessions.enumerated()), id: \.element.id) { index, session in
                     SessionRowView(
                         session: session,
                         isSelected: session.id == activeSessionId,
@@ -45,9 +45,18 @@ struct SessionGroupView: View {
                         availableGroups: allGroups
                     )
                     .padding(.leading, 6)
-                }
-                .onMove { source, destination in
-                    onReorderSessions?(source, destination)
+                    .dropDestination(for: String.self) { items, _ in
+                        // Reorder: dropped session moves to this position
+                        for item in items {
+                            if let uuid = UUID(uuidString: item),
+                               let fromIndex = sessions.firstIndex(where: { $0.id == uuid }),
+                               fromIndex != index {
+                                let dest = fromIndex < index ? index + 1 : index
+                                onReorderSessions?(IndexSet(integer: fromIndex), dest)
+                            }
+                        }
+                        return true
+                    }
                 }
             }
         }
