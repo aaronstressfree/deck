@@ -43,6 +43,11 @@ struct CollapsedSessionButton<Icon: View>: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(.background)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 4))
         }
     }
 
