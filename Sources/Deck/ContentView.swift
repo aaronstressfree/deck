@@ -160,7 +160,13 @@ struct ContentView: View {
             )
         }
         .buttonStyle(.plain)
-        .help(session.displayName)
+        .help({
+            let projectName = sessionManager.groups.first(where: { $0.id == session.groupId })?.name
+            if let projectName {
+                return "\(projectName) — \(session.displayName)"
+            }
+            return session.displayName
+        }())
     }
 
     private func sessionBinding(for id: UUID) -> Binding<Session>? {

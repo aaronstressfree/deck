@@ -40,8 +40,8 @@ struct StatusBarView: View {
                 Spacer()
             }
         }
-        .padding(.horizontal, 10)
-        .frame(height: 22)
+        .padding(.horizontal, 12)
+        .frame(height: 26)
         .background(theme.surfaces.bar.swiftUIColor)
         .overlay(
             Rectangle().frame(height: 1).foregroundStyle(theme.borders.subtle.swiftUIColor),

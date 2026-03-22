@@ -15,16 +15,31 @@ struct SessionGroupView: View {
     let onRenameGroup: (String) -> Void
     let onDeleteGroup: () -> Void
     let onNewSession: (AgentType) -> Void
+    let onUpdateInstructions: (String) -> Void
 
     @State private var isEditing = false
     @State private var editName: String = ""
     @State private var isDropTarget = false
-    @State private var isHovered = false
+    @State private var isHeaderHovered = false
+    @State private var showNewPicker = false
+    @State private var showSettings = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
             // Project header
             projectHeader
+
+            // Directory path (when expanded)
+            if !group.isCollapsed, let dir = group.workingDirectory {
+                Text(truncatedPath(dir))
+                    .font(.system(size: 12))
+                    .foregroundStyle(theme.text.quaternary.swiftUIColor)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .padding(.horizontal, 23)
+                    .padding(.bottom, 2)
+                    .help(dir)
+            }
 
             // Sessions when expanded
             if !group.isCollapsed {
@@ -42,7 +57,6 @@ struct SessionGroupView: View {
                 }
             }
         }
-        // Accept drops — sessions dragged onto this project
         .dropDestination(for: String.self) { items, _ in
             for item in items {
                 if let uuid = UUID(uuidString: item) {
@@ -53,7 +67,17 @@ struct SessionGroupView: View {
         } isTargeted: { targeted in
             isDropTarget = targeted
         }
+        .sheet(isPresented: $showSettings) {
+            ProjectSettingsSheet(
+                group: group,
+                sessions: sessions,
+                onRename: onRenameGroup,
+                onUpdateInstructions: onUpdateInstructions
+            )
+        }
     }
+
+    // MARK: - Project header
 
     private var projectHeader: some View {
         HStack(spacing: 5) {
@@ -88,15 +112,37 @@ struct SessionGroupView: View {
 
             Spacer()
 
-            // "+" button to add a new chat to this project
-            if isHovered && !isEditing {
+            // Action buttons — always rendered for stable popover anchoring,
+            // opacity controlled by hover state
+            HStack(spacing: 6) {
+                // Settings gear
+                Image(systemName: "gearshape")
+                    .font(.system(size: 10))
+                    .foregroundStyle(theme.text.quaternary.swiftUIColor)
+                    .frame(width: 16, height: 16)
+                    .contentShape(Rectangle())
+                    .onTapGesture { showSettings = true }
+
+                // New chat "+"
                 Image(systemName: "plus")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(theme.text.quaternary.swiftUIColor)
-                    .onTapGesture {
-                        onNewSession(.claude)
+                    .frame(width: 16, height: 16)
+                    .contentShape(Rectangle())
+                    .onTapGesture { showNewPicker.toggle() }
+                    .popover(isPresented: $showNewPicker, arrowEdge: .trailing) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            agentPickerButton(icon: "sparkles", label: "Claude Code", type: .claude)
+                            agentPickerButton(icon: "bolt.fill", label: "Amp", type: .amp)
+                            agentPickerButton(icon: "terminal.fill", label: "Shell", type: .shell)
+                        }
+                        .padding(6)
+                        .frame(width: 160)
+                        .background(theme.surfaces.elevated.swiftUIColor)
+                        .environment(\.colorScheme, .dark)
                     }
             }
+            .opacity(isHeaderHovered && !isEditing ? 1 : 0)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
@@ -110,7 +156,7 @@ struct SessionGroupView: View {
                 : nil
         )
         .contentShape(Rectangle())
-        .onHover { isHovered = $0 }
+        .onHover { isHeaderHovered = $0 }
         .onTapGesture { withAnimation(.easeOut(duration: 0.15)) { onToggleCollapse() } }
         .gesture(TapGesture(count: 2).onEnded {
             editName = group.name
@@ -118,12 +164,186 @@ struct SessionGroupView: View {
         })
         .contextMenu {
             Button("Rename") { editName = group.name; isEditing = true }
+            Button("Project Settings...") { showSettings = true }
             Button(group.isCollapsed ? "Expand" : "Collapse") { onToggleCollapse() }
 
             if !group.isGeneral {
                 Divider()
                 Button("Delete Project", role: .destructive) { onDeleteGroup() }
             }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func agentPickerButton(icon: String, label: String, type: AgentType) -> some View {
+        Button(action: {
+            onNewSession(type)
+            showNewPicker = false
+        }) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 14))
+                    .foregroundStyle(theme.text.secondary.swiftUIColor)
+                    .frame(width: 18)
+                Text(label)
+                    .font(.system(size: 14))
+                    .foregroundStyle(theme.text.primary.swiftUIColor)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func truncatedPath(_ path: String) -> String {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        var display = path
+        if display.hasPrefix(home) {
+            display = "~" + display.dropFirst(home.count)
+        }
+        return display
+    }
+}
+
+// MARK: - Project Settings Sheet
+
+struct ProjectSettingsSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let group: SessionGroup
+    let sessions: [Session]
+    let onRename: (String) -> Void
+    let onUpdateInstructions: (String) -> Void
+
+    @State private var editName: String = ""
+    @State private var editInstructions: String = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Project Settings")
+                .font(.system(size: 18, weight: .semibold))
+
+            // Name
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Name")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.secondary)
+                TextField("Project name", text: $editName)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 14))
+            }
+
+            // Working directory
+            if let dir = group.workingDirectory {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Working Directory")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.secondary)
+                    HStack {
+                        Text(dir)
+                            .font(.system(size: 14, design: .monospaced))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer()
+                        Button("Show in Finder") {
+                            NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: dir)
+                        }
+                        .font(.system(size: 12))
+                    }
+                }
+            }
+
+            // Shared context explanation
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "shared.with.you")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.blue)
+                    Text("Shared Context")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+
+                Text("Instructions you write here are automatically shared with every chat in this project. Each chat can see what the others are working on and will coordinate to avoid duplicating work.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                // Show which chats are in the project
+                if !sessions.isEmpty {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Chats in this project (\(sessions.count)):")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.tertiary)
+                        ForEach(sessions.prefix(5)) { session in
+                            HStack(spacing: 4) {
+                                Image(systemName: session.agentType.iconName)
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.tertiary)
+                                Text(session.displayName)
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        if sessions.count > 5 {
+                            Text("+ \(sessions.count - 5) more")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                }
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.blue.opacity(0.05))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.blue.opacity(0.15), lineWidth: 1)
+                    )
+            )
+
+            // Instructions editor
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Project Instructions")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.secondary)
+                TextEditor(text: $editInstructions)
+                    .font(.system(size: 14, design: .monospaced))
+                    .scrollContentBackground(.hidden)
+                    .padding(8)
+                    .frame(minHeight: 100, maxHeight: 200)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color(nsColor: .controlBackgroundColor))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+                            )
+                    )
+            }
+
+            // Actions
+            HStack {
+                Spacer()
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("Save") {
+                    if editName != group.name { onRename(editName) }
+                    if editInstructions != group.instructions { onUpdateInstructions(editInstructions) }
+                    dismiss()
+                }
+                .keyboardShortcut(.defaultAction)
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(24)
+        .frame(width: 480)
+        .onAppear {
+            editName = group.name
+            editInstructions = group.instructions
         }
     }
 }

@@ -6,39 +6,41 @@ struct SidebarView: View {
     @ObservedObject var sessionManager: SessionManager
 
     @State private var showTodos = false
+    @State private var showNewProject = false
 
     var body: some View {
         VStack(spacing: 0) {
-            // Compact drag region for traffic lights — just enough space
-            Color.clear.frame(height: 28)
+            // Compact drag region for traffic lights
+            Color.clear.frame(height: 8)
 
             // Project list — every session belongs to a project
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 2) {
                     ForEach(sortedProjects) { group in
                         let groupSessions = sessionManager.sessions.filter { $0.groupId == group.id }
-                        if !groupSessions.isEmpty || group.isGeneral {
-                            SessionGroupView(
-                                group: group,
-                                sessions: groupSessions,
-                                allGroups: sessionManager.groups,
-                                activeSessionId: sessionManager.activeSessionId,
-                                onToggleCollapse: { sessionManager.toggleGroupCollapsed(id: group.id) },
-                                onSelectSession: { sessionManager.switchToSession(id: $0) },
-                                onCloseSession: { sessionManager.closeSession(id: $0) },
-                                onRenameSession: { id, name in sessionManager.renameSession(id: id, name: name) },
-                                onMoveSession: { id, groupId in sessionManager.moveSession(id: id, toGroup: groupId) },
-                                onRenameGroup: { name in sessionManager.renameGroup(id: group.id, name: name) },
-                                onDeleteGroup: { sessionManager.deleteGroup(id: group.id) },
-                                onNewSession: { agentType in
-                                    sessionManager.createSession(
-                                        agentType: agentType,
-                                        workingDirectory: group.workingDirectory,
-                                        groupId: group.id
-                                    )
-                                }
-                            )
-                        }
+                        SessionGroupView(
+                            group: group,
+                            sessions: groupSessions,
+                            allGroups: sessionManager.groups,
+                            activeSessionId: sessionManager.activeSessionId,
+                            onToggleCollapse: { sessionManager.toggleGroupCollapsed(id: group.id) },
+                            onSelectSession: { sessionManager.switchToSession(id: $0) },
+                            onCloseSession: { sessionManager.closeSession(id: $0) },
+                            onRenameSession: { id, name in sessionManager.renameSession(id: id, name: name) },
+                            onMoveSession: { id, groupId in sessionManager.moveSession(id: id, toGroup: groupId) },
+                            onRenameGroup: { name in sessionManager.renameGroup(id: group.id, name: name) },
+                            onDeleteGroup: { sessionManager.deleteGroup(id: group.id) },
+                            onNewSession: { agentType in
+                                sessionManager.createSession(
+                                    agentType: agentType,
+                                    workingDirectory: group.workingDirectory,
+                                    groupId: group.id
+                                )
+                            },
+                            onUpdateInstructions: { instructions in
+                                sessionManager.updateGroupInstructions(id: group.id, instructions: instructions)
+                            }
+                        )
                     }
 
                     // Empty state
@@ -46,7 +48,7 @@ struct SidebarView: View {
                         emptyState
                     }
                 }
-                .padding(.horizontal, 4)
+                .padding(.horizontal, 8)
                 .padding(.top, 4)
             }
 
@@ -65,22 +67,43 @@ struct SidebarView: View {
                 activeProjectName: sessionManager.activeProject?.name,
                 onNewClaude: { sessionManager.createSession(agentType: .claude) },
                 onNewAmp: { sessionManager.createSession(agentType: .amp) },
-                onNewShell: { sessionManager.createSession(agentType: .shell) }
+                onNewShell: { sessionManager.createSession(agentType: .shell) },
+                onNewProject: { name, dir in
+                    sessionManager.createGroup(name: name, workingDirectory: dir)
+                },
+                onShowNewProject: { showNewProject = true }
             )
         }
         .background(theme.surfaces.inset.swiftUIColor)
+        .sheet(isPresented: $showNewProject) {
+            NewProjectSheet(
+                onCreate: { name, dir in
+                    sessionManager.createGroup(name: name, workingDirectory: dir)
+                }
+            )
+        }
     }
 
     // MARK: - Sorted projects (active project first)
 
     private var sortedProjects: [SessionGroup] {
         let activeProjectId = sessionManager.activeSession?.groupId
+        // Pre-compute latest activity per group in one pass (O(n) instead of O(n²))
+        var latestByGroup: [UUID: Date] = [:]
+        for session in sessionManager.sessions {
+            if let gid = session.groupId {
+                if let existing = latestByGroup[gid] {
+                    if session.lastActiveAt > existing { latestByGroup[gid] = session.lastActiveAt }
+                } else {
+                    latestByGroup[gid] = session.lastActiveAt
+                }
+            }
+        }
         return sessionManager.groups.sorted { a, b in
             if a.id == activeProjectId { return true }
             if b.id == activeProjectId { return false }
-            // Then by most recent session activity
-            let aLatest = sessionManager.sessions.filter { $0.groupId == a.id }.map(\.lastActiveAt).max() ?? .distantPast
-            let bLatest = sessionManager.sessions.filter { $0.groupId == b.id }.map(\.lastActiveAt).max() ?? .distantPast
+            let aLatest = latestByGroup[a.id] ?? .distantPast
+            let bLatest = latestByGroup[b.id] ?? .distantPast
             return aLatest > bLatest
         }
     }

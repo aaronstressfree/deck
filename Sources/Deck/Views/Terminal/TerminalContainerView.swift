@@ -67,7 +67,7 @@ struct TerminalContainerView: View {
                 onSend: { text in controller.send(text) }
             )
             .padding(.horizontal, 10)
-            .padding(.bottom, 8)
+            .padding(.bottom, 10)
         }
         .background(theme.terminal.background.swiftUIColor)
     }
@@ -91,7 +91,7 @@ struct TerminalContainerView: View {
                     .foregroundStyle(theme.text.quaternary.swiftUIColor)
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 4)
+            .padding(.vertical, 6)
             .background(theme.accent.muted.swiftUIColor)
         }
         .buttonStyle(.plain)
@@ -101,8 +101,7 @@ struct TerminalContainerView: View {
 
     private var terminalWithPadding: some View {
         terminalArea
-            .padding(.leading, 8)
-            .padding(.trailing, 4)
+            .padding(.horizontal, 8)
             .padding(.top, 4)
     }
 
@@ -171,7 +170,7 @@ struct TerminalContainerView: View {
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 5)
+        .padding(.vertical, 7)
     }
 
     private func utilityButton(icon: String, label: String, isActive: Bool, accessibilityId: String, action: @escaping () -> Void) -> some View {

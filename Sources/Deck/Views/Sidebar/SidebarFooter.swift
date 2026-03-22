@@ -9,6 +9,8 @@ struct SidebarFooter: View {
     let onNewClaude: () -> Void
     let onNewAmp: () -> Void
     let onNewShell: () -> Void
+    let onNewProject: ((String, String?) -> Void)?
+    let onShowNewProject: () -> Void
 
     var body: some View {
         HStack {
@@ -24,7 +26,7 @@ struct SidebarFooter: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(HoverButtonStyle(hoverColor: theme.surfaces.hover.swiftUIColor))
             .popover(isPresented: $showMenu, arrowEdge: .top) {
                 VStack(alignment: .leading, spacing: 2) {
                     // Project context header
@@ -48,6 +50,14 @@ struct SidebarFooter: View {
                         onNewShell()
                         showMenu = false
                     }
+                    Divider().padding(.vertical, 2)
+                    menuButton(icon: "folder.badge.plus", label: "New Project...", shortcut: "") {
+                        showMenu = false
+                        // Delay to let popover dismiss before showing sheet
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            onShowNewProject()
+                        }
+                    }
                 }
                 .padding(6)
                 .frame(width: 200)
@@ -58,18 +68,13 @@ struct SidebarFooter: View {
             Spacer()
 
             // Settings gear
-            Button(action: {
-                if !NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil) {
-                    if !NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil) {
-                        NSApp.sendAction(Selector(("orderFrontPreferencesPanel:")), to: nil, from: nil)
-                    }
-                }
-            }) {
+            SettingsLink {
                 Image(systemName: "gear")
                     .font(.system(size: 14))
                     .foregroundStyle(theme.text.quaternary.swiftUIColor)
+                    .frame(width: 28, height: 28)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(HoverButtonStyle(hoverColor: theme.surfaces.hover.swiftUIColor))
             .help("Settings (⌘,)")
         }
         .padding(.horizontal, 6)
@@ -96,7 +101,75 @@ struct SidebarFooter: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
             .contentShape(Rectangle())
+            .background(RoundedRectangle(cornerRadius: 4).fill(Color.clear))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(HoverButtonStyle(hoverColor: theme.surfaces.hover.swiftUIColor))
+    }
+}
+
+// MARK: - New Project Sheet
+
+struct NewProjectSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let onCreate: (String, String?) -> Void
+
+    @State private var name = ""
+    @State private var directory = ""
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("New Project")
+                .font(.system(size: 18, weight: .semibold))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Name")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.secondary)
+                TextField("Project name", text: $name)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 14))
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Working Directory")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.secondary)
+                Text("Optional — leave empty to set later")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.tertiary)
+                HStack {
+                    TextField("~/Development/my-project", text: $directory)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 14))
+                    Button("Browse...") {
+                        let panel = NSOpenPanel()
+                        panel.canChooseDirectories = true
+                        panel.canChooseFiles = false
+                        if panel.runModal() == .OK, let url = panel.url {
+                            directory = url.path
+                            if name.isEmpty {
+                                name = url.lastPathComponent
+                            }
+                        }
+                    }
+                }
+            }
+
+            HStack {
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Spacer()
+                Button("Create") {
+                    onCreate(name, directory.isEmpty ? nil : directory)
+                    dismiss()
+                }
+                .keyboardShortcut(.defaultAction)
+                .buttonStyle(.borderedProminent)
+                .disabled(name.isEmpty)
+            }
+        }
+        .padding(24)
+        .frame(width: 400)
     }
 }

@@ -21,6 +21,7 @@ struct AppearanceSettingsView: View {
                 Spacer()
             }
             .padding(.horizontal)
+            .padding(.top, 8)
 
             // Theme grid
             ScrollView {

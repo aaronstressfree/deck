@@ -63,6 +63,7 @@ struct DeckApp: App {
             ContentView(appDelegate: appDelegate, sessionManager: sessionManager, urlBarFocused: $urlBarFocused, showNewSessionSheet: $showNewSessionSheet)
                 .environment(\.deckTheme, themeManager.activeTheme)
                 .environment(\.colorScheme, themeManager.activeTheme.metadata.colorScheme == .dark ? .dark : .light)
+                .preferredColorScheme(themeManager.activeTheme.metadata.colorScheme == .dark ? .dark : .light)
                 .environmentObject(themeManager)
                 .environmentObject(designMode)
                 .environmentObject(sessionManager)
@@ -95,6 +96,7 @@ struct DeckApp: App {
         Settings {
             SettingsView(sessionManager: sessionManager)
                 .environmentObject(themeManager)
+                .environment(\.colorScheme, themeManager.activeTheme.metadata.colorScheme == .dark ? .dark : .light)
         }
     }
 }

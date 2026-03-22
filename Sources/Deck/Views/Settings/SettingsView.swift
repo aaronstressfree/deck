@@ -1,7 +1,12 @@
 import SwiftUI
 
 struct SettingsView: View {
+    @EnvironmentObject var themeManager: ThemeManager
     @ObservedObject var sessionManager: SessionManager
+
+    private var isDark: Bool {
+        themeManager.activeTheme.metadata.colorScheme == .dark
+    }
 
     var body: some View {
         TabView {
@@ -22,5 +27,6 @@ struct SettingsView: View {
         }
         .frame(minWidth: 700, minHeight: 550)
         .frame(width: 780, height: 600)
+        .preferredColorScheme(isDark ? .dark : .light)
     }
 }

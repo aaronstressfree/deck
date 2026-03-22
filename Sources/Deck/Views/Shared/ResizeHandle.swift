@@ -15,6 +15,7 @@ struct SidebarResizeHandle: View {
         Rectangle()
             .fill(isDragging ? theme.accent.primary.swiftUIColor : (isHovered ? theme.borders.hover.swiftUIColor : theme.borders.primary.swiftUIColor))
             .frame(width: isDragging ? 2 : 1)
+            .ignoresSafeArea(.all, edges: .top)
             .contentShape(Rectangle().inset(by: -3)) // larger hit target
             .onHover { hovering in
                 isHovered = hovering

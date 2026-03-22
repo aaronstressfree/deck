@@ -54,7 +54,8 @@ struct SessionRowView: View {
                 // Line 1: Session name
                 if isEditing {
                     TextField("Name", text: $editName, onCommit: {
-                        onRename(editName.isEmpty ? session.autoName : editName)
+                        // Set manual name; empty = clear manual name (revert to AI name)
+                        onRename(editName.trimmingCharacters(in: .whitespaces))
                         isEditing = false
                     })
                     .textFieldStyle(.plain)
@@ -159,14 +160,14 @@ struct SessionRowView: View {
             if let code = session.exitCode, code != 0 {
                 return "Exited (\(code))"
             }
-            return "Not started"
+            return "Ready"
         }
         switch session.agentStatus {
-        case .idle: return "Idle"
+        case .idle: return "Ready"
         case .thinking: return "Thinking..."
-        case .writing: return "Writing..."
-        case .running: return "Running..."
-        case .waitingForInput: return "Waiting for input"
+        case .writing: return "Writing code..."
+        case .running: return "Working..."
+        case .waitingForInput: return "Needs approval"
         case .error: return "Error"
         }
     }
