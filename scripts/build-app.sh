@@ -3,6 +3,13 @@ set -e
 
 cd "$(dirname "$0")/.."
 
+# Version: use git tag if available, otherwise 0.1.0
+VERSION="${DECK_VERSION:-$(git describe --tags --abbrev=0 2>/dev/null || echo "0.1.0")}"
+# Build number: git commit count
+BUILD_NUMBER="${DECK_BUILD:-$(git rev-list --count HEAD 2>/dev/null || echo "1")}"
+
+echo "Building Deck v${VERSION} (build ${BUILD_NUMBER})..."
+
 # Build the binary
 swift build 2>&1
 
@@ -20,8 +27,8 @@ if [ -d ".build/debug/SwiftTerm_SwiftTerm.bundle" ]; then
     cp -r .build/debug/SwiftTerm_SwiftTerm.bundle "$APP_DIR/Contents/Resources/"
 fi
 
-# Create Info.plist — no sandbox, full file/network access
-cat > "$APP_DIR/Contents/Info.plist" << 'PLIST'
+# Create Info.plist with dynamic version
+cat > "$APP_DIR/Contents/Info.plist" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -33,9 +40,9 @@ cat > "$APP_DIR/Contents/Info.plist" << 'PLIST'
     <key>CFBundleIdentifier</key>
     <string>com.deck.app</string>
     <key>CFBundleVersion</key>
-    <string>1.0</string>
+    <string>${BUILD_NUMBER}</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
+    <string>${VERSION}</string>
     <key>CFBundleExecutable</key>
     <string>Deck</string>
     <key>CFBundlePackageType</key>
@@ -105,5 +112,5 @@ ENTITLEMENTS
 # Re-sign the entire app bundle with entitlements
 codesign --force --deep --sign - --entitlements "$APP_DIR/Contents/entitlements.plist" "$APP_DIR" 2>&1 || echo "Warning: codesign failed"
 
-echo "Built: $APP_DIR"
+echo "Built: $APP_DIR (v${VERSION}, build ${BUILD_NUMBER})"
 echo "Run with: open $APP_DIR"

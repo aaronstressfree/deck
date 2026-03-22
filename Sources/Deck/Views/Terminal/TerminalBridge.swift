@@ -42,51 +42,51 @@ final class TerminalController: ObservableObject {
         // Primary: OSC title (Claude Code updates this with status)
         var combined = lastTerminalTitle
 
-        // Fallback: read visible buffer lines
+        // Fallback: read visible buffer lines (last 8 rows)
         let rows = terminal.rows
         let cols = terminal.cols
         let startRow = max(0, rows - 8)
-        for row in startRow..<rows {
-            var line = ""
-            for col in 0..<cols {
-                let pos = Position(col: col, row: row)
-                let ch = terminal.buffer.getChar(at: pos)
-                let char = ch.getCharacter()
-                line.append(char)
-            }
-            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmed.isEmpty {
-                combined += "\n" + trimmed
-            }
-        }
+        combined += "\n" + scanRows(terminal: terminal, from: startRow, to: rows, cols: cols)
 
         return combined
     }
 
-    /// Read the full visible buffer for URL detection (scans all visible rows, not just last 8).
+    /// Read the full visible buffer for URL detection (scans all visible rows).
     func readFullVisibleBuffer() -> String {
         guard let tv = terminalView else { return "" }
         let terminal = tv.getTerminal()
+        return scanRows(terminal: terminal, from: 0, to: terminal.rows, cols: terminal.cols)
+    }
 
-        let rows = terminal.rows
-        let cols = terminal.cols
-        var lines: [String] = []
+    /// Efficiently scan terminal rows into a string, preallocating capacity.
+    private func scanRows(terminal: Terminal, from startRow: Int, to endRow: Int, cols: Int) -> String {
+        let rowCount = endRow - startRow
+        // Preallocate: ~cols characters per row + newlines
+        var result = String()
+        result.reserveCapacity(rowCount * (cols + 1))
 
-        for row in 0..<rows {
-            var line = ""
+        // Preallocate a line buffer to reuse across rows
+        var lineChars = [Character]()
+        lineChars.reserveCapacity(cols)
+
+        for row in startRow..<endRow {
+            lineChars.removeAll(keepingCapacity: true)
             for col in 0..<cols {
                 let pos = Position(col: col, row: row)
                 let ch = terminal.buffer.getChar(at: pos)
-                let char = ch.getCharacter()
-                line.append(char)
+                lineChars.append(ch.getCharacter())
             }
-            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmed.isEmpty {
-                lines.append(trimmed)
+            // Trim trailing whitespace efficiently
+            while let last = lineChars.last, last == " " || last == "\0" {
+                lineChars.removeLast()
+            }
+            if !lineChars.isEmpty {
+                if !result.isEmpty { result.append("\n") }
+                result.append(contentsOf: lineChars)
             }
         }
 
-        return lines.joined(separator: "\n")
+        return result
     }
 
     /// Hide the terminal cursor (chat mode) — makes it clear you're typing in the chat box
@@ -96,9 +96,12 @@ final class TerminalController: ObservableObject {
             savedCaretColor = tv.caretColor
         }
         tv.caretColor = .clear
-        // Also hide the CaretView subview directly
+        // Also hide the CaretView subview directly.
+        // String-based type checking is used because SwiftTerm's CaretView/MacCaretView
+        // are internal types not exposed in the public API. The class names are stable
+        // across SwiftTerm versions. Using String(describing:) avoids obj-c bridging overhead.
         for subview in tv.subviews {
-            if type(of: subview).description().contains("Caret") {
+            if String(describing: type(of: subview)).contains("Caret") {
                 subview.isHidden = true
             }
         }
@@ -109,9 +112,9 @@ final class TerminalController: ObservableObject {
         guard let tv = terminalView else { return }
         tv.caretColor = savedCaretColor ?? themeColor
         savedCaretColor = nil
-        // Show the CaretView subview
+        // Show the CaretView subview (see hideCursor for why string-based checking is used)
         for subview in tv.subviews {
-            if type(of: subview).description().contains("Caret") {
+            if String(describing: type(of: subview)).contains("Caret") {
                 subview.isHidden = false
             }
         }
