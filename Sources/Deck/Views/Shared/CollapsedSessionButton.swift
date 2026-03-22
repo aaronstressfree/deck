@@ -1,7 +1,7 @@
 import SwiftUI
 import AppKit
 
-/// A collapsed sidebar icon button that shows a floating tooltip to the right on hover.
+/// A collapsed sidebar icon button that shows a tooltip with arrow to the right on hover.
 struct CollapsedSessionButton<Icon: View>: View {
     let session: Session
     let isActive: Bool
@@ -54,18 +54,21 @@ struct CollapsedSessionButton<Icon: View>: View {
 
         let label = session.displayName
         let font = NSFont.systemFont(ofSize: 12, weight: .medium)
-        let size = (label as NSString).size(withAttributes: [.font: font])
-        let hPad: CGFloat = 16
-        let vPad: CGFloat = 8
-        let width = size.width + hPad
-        let height = size.height + vPad
+        let textSize = (label as NSString).size(withAttributes: [.font: font])
+        let hPad: CGFloat = 20
+        let vPad: CGFloat = 10
+        let arrowWidth: CGFloat = 7
+        let bubbleWidth = textSize.width + hPad
+        let bubbleHeight = textSize.height + vPad
+        let totalWidth = bubbleWidth + arrowWidth
+        let totalHeight = max(bubbleHeight, 28)
 
         // Position to the right of the button
-        let x = buttonFrame.maxX + 6
-        let y = screen.frame.height - buttonFrame.midY - (height / 2)
+        let x = buttonFrame.maxX + 4
+        let y = screen.frame.height - buttonFrame.midY - (totalHeight / 2)
 
         let window = NSWindow(
-            contentRect: NSRect(x: x, y: y, width: width, height: height),
+            contentRect: NSRect(x: x, y: y, width: totalWidth, height: totalHeight),
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
@@ -74,30 +77,17 @@ struct CollapsedSessionButton<Icon: View>: View {
         window.backgroundColor = .clear
         window.level = .floating
         window.ignoresMouseEvents = true
-        window.hasShadow = true
+        window.hasShadow = false
 
-        // Use a simple NSVisualEffectView + NSTextField (no SwiftUI hosting)
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: width, height: height))
-
-        let bg = NSVisualEffectView(frame: container.bounds)
-        bg.material = .popover
-        bg.state = .active
-        bg.wantsLayer = true
-        bg.layer?.cornerRadius = 6
-        bg.layer?.masksToBounds = true
-        container.addSubview(bg)
-
-        let textField = NSTextField(labelWithString: label)
-        textField.font = font
-        textField.textColor = .labelColor
-        textField.sizeToFit()
-        textField.frame.origin = NSPoint(
-            x: (width - textField.frame.width) / 2,
-            y: (height - textField.frame.height) / 2
+        let tooltipView = TooltipView(
+            frame: NSRect(x: 0, y: 0, width: totalWidth, height: totalHeight),
+            text: label,
+            font: font,
+            arrowWidth: arrowWidth,
+            bgColor: theme.surfaces.elevated.nsColor,
+            textColor: theme.text.primary.nsColor
         )
-        container.addSubview(textField)
-
-        window.contentView = container
+        window.contentView = tooltipView
         window.orderFront(nil)
 
         window.alphaValue = 0
@@ -118,6 +108,111 @@ struct CollapsedSessionButton<Icon: View>: View {
             window.orderOut(nil)
         })
         tooltipWindow = nil
+    }
+}
+
+/// Custom NSView that draws a tooltip bubble with a left-pointing arrow.
+private class TooltipView: NSView {
+    let text: String
+    let font: NSFont
+    let arrowWidth: CGFloat
+    let bgColor: NSColor
+    let textColor: NSColor
+
+    init(frame: NSRect, text: String, font: NSFont, arrowWidth: CGFloat, bgColor: NSColor, textColor: NSColor) {
+        self.text = text
+        self.font = font
+        self.arrowWidth = arrowWidth
+        self.bgColor = bgColor
+        self.textColor = textColor
+        super.init(frame: frame)
+        wantsLayer = true
+        layer?.backgroundColor = .clear
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func draw(_ dirtyRect: NSRect) {
+        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+
+        let bounds = self.bounds
+        let cornerRadius: CGFloat = 7
+        let arrowH: CGFloat = 10  // arrow height (half)
+        let midY = bounds.midY
+
+        // Bubble rect (right of arrow)
+        let bubbleRect = NSRect(
+            x: arrowWidth,
+            y: 0,
+            width: bounds.width - arrowWidth,
+            height: bounds.height
+        )
+
+        // Build path: rounded rect with left-pointing arrow
+        let path = CGMutablePath()
+
+        // Start at top-left of bubble (after corner)
+        path.move(to: CGPoint(x: bubbleRect.minX + cornerRadius, y: bubbleRect.maxY))
+
+        // Top edge
+        path.addLine(to: CGPoint(x: bubbleRect.maxX - cornerRadius, y: bubbleRect.maxY))
+        // Top-right corner
+        path.addArc(center: CGPoint(x: bubbleRect.maxX - cornerRadius, y: bubbleRect.maxY - cornerRadius),
+                     radius: cornerRadius, startAngle: .pi / 2, endAngle: 0, clockwise: true)
+        // Right edge
+        path.addLine(to: CGPoint(x: bubbleRect.maxX, y: cornerRadius))
+        // Bottom-right corner
+        path.addArc(center: CGPoint(x: bubbleRect.maxX - cornerRadius, y: cornerRadius),
+                     radius: cornerRadius, startAngle: 0, endAngle: -.pi / 2, clockwise: true)
+        // Bottom edge
+        path.addLine(to: CGPoint(x: bubbleRect.minX + cornerRadius, y: bubbleRect.minY))
+        // Bottom-left corner
+        path.addArc(center: CGPoint(x: bubbleRect.minX + cornerRadius, y: cornerRadius),
+                     radius: cornerRadius, startAngle: -.pi / 2, endAngle: .pi, clockwise: true)
+        // Left edge down to arrow
+        path.addLine(to: CGPoint(x: bubbleRect.minX, y: midY + arrowH))
+        // Arrow point
+        path.addLine(to: CGPoint(x: 0, y: midY))
+        // Arrow back
+        path.addLine(to: CGPoint(x: bubbleRect.minX, y: midY - arrowH))
+        // Left edge up to top-left corner
+        path.addLine(to: CGPoint(x: bubbleRect.minX, y: bubbleRect.maxY - cornerRadius))
+        // Top-left corner
+        path.addArc(center: CGPoint(x: bubbleRect.minX + cornerRadius, y: bubbleRect.maxY - cornerRadius),
+                     radius: cornerRadius, startAngle: .pi, endAngle: .pi / 2, clockwise: true)
+
+        path.closeSubpath()
+
+        // Shadow
+        ctx.saveGState()
+        ctx.setShadow(offset: CGSize(width: 0, height: -2), blur: 8, color: NSColor.black.withAlphaComponent(0.3).cgColor)
+        ctx.setFillColor(bgColor.cgColor)
+        ctx.addPath(path)
+        ctx.fillPath()
+        ctx.restoreGState()
+
+        // Fill again without shadow (for crisp edges)
+        ctx.setFillColor(bgColor.cgColor)
+        ctx.addPath(path)
+        ctx.fillPath()
+
+        // Border
+        ctx.setStrokeColor(NSColor.white.withAlphaComponent(0.08).cgColor)
+        ctx.setLineWidth(0.5)
+        ctx.addPath(path)
+        ctx.strokePath()
+
+        // Text
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: textColor,
+        ]
+        let textSize = (text as NSString).size(withAttributes: attrs)
+        let textOrigin = NSPoint(
+            x: arrowWidth + (bubbleRect.width - textSize.width) / 2,
+            y: (bounds.height - textSize.height) / 2
+        )
+        (text as NSString).draw(at: textOrigin, withAttributes: attrs)
     }
 }
 
