@@ -63,9 +63,12 @@ struct CollapsedSessionButton<Icon: View>: View {
         let totalWidth = bubbleWidth + arrowWidth
         let totalHeight = max(bubbleHeight, 28)
 
-        // Position to the right of the button
-        let x = buttonFrame.maxX + 4
-        let y = screen.frame.height - buttonFrame.midY - (totalHeight / 2)
+        // Convert button frame from SwiftUI global coords to screen coords
+        // SwiftUI global = relative to window content, y-down
+        // Screen coords = absolute, y-up from bottom
+        guard let windowFrame = NSApp.keyWindow?.frame else { return }
+        let x = windowFrame.minX + buttonFrame.maxX + 4
+        let y = windowFrame.maxY - buttonFrame.midY - (totalHeight / 2)
 
         let window = NSWindow(
             contentRect: NSRect(x: x, y: y, width: totalWidth, height: totalHeight),
