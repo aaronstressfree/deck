@@ -41,12 +41,12 @@ enum AgentType: String, Codable, Hashable, Sendable, CaseIterable {
     var defaultArguments: [String] {
         switch self {
         case .claude:
-            // Spawn a login shell that runs claude, so PATH is set up
-            return ["-l", "-c", "claude"]
+            // Login + interactive shell runs the CLI; falls back to shell if not found
+            return ["-l", "-i", "-c", "claude || { echo '\\n⚠ claude not found. Install: npm install -g @anthropic-ai/claude-code'; exec zsh -l; }"]
         case .amp:
-            return ["-l", "-c", "amp"]
+            return ["-l", "-i", "-c", "amp || { echo '\\n⚠ amp not found. Install: npm install -g @anthropic-ai/amp'; exec zsh -l; }"]
         case .shell:
-            return ["--login"]
+            return ["--login", "-i"]
         }
     }
 

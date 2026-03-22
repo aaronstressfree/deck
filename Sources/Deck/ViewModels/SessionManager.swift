@@ -382,9 +382,12 @@ final class SessionManager: ObservableObject {
             chatModeSessionIds = Set(sessions.map(\.id))
         }
 
+        // Reset all sessions — processes died with the old app instance.
+        // Clear exit codes so they restart fresh when the view creates TerminalBridge.
         for i in sessions.indices {
             sessions[i].isRunning = false
             sessions[i].agentStatus = .idle
+            sessions[i].exitCode = nil
         }
 
         migrateToProjectFirst()

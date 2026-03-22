@@ -139,7 +139,7 @@ final class DesignModeManager: ObservableObject {
     func sendToSession(controller: TerminalController) {
         let markdown = toMarkdown()
         guard !markdown.isEmpty else { return }
-        controller.send(markdown)
+        controller.send(markdown + "\r")
         clearAll()
     }
 }
