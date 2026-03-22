@@ -51,6 +51,15 @@ final class StatusPoller {
         // Check URL queue from BROWSER handler script
         checkURLQueue(sm: sm)
 
+        // Capture Claude session IDs even for not-yet-running sessions
+        for i in sm.sessions.indices {
+            if sm.sessions[i].agentType == .claude && sm.sessions[i].agentSessionId == nil {
+                if let sid = findClaudeSessionId(for: sm.sessions[i].workingDirectory) {
+                    sm.sessions[i].agentSessionId = sid
+                }
+            }
+        }
+
         // Update agent statuses
         for i in sm.sessions.indices where sm.sessions[i].isRunning {
             guard let controller = sm.terminalControllers[sm.sessions[i].id] else { continue }
@@ -147,5 +156,33 @@ final class StatusPoller {
         autoOpenedURLs[sessionId, default: []].insert(url)
 
         sm.openURLInBrowser(url, sessionIndex: i)
+    }
+
+    // MARK: - Claude Session ID Capture
+
+    /// Find the most recent Claude Code session ID for a given working directory.
+    private func findClaudeSessionId(for workingDirectory: String) -> String? {
+        let sessionsDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".claude/sessions")
+        guard let files = try? FileManager.default.contentsOfDirectory(
+            at: sessionsDir,
+            includingPropertiesForKeys: [.contentModificationDateKey]
+        ) else { return nil }
+
+        var bestMatch: (id: String, date: Date)?
+        for file in files where file.pathExtension == "json" {
+            guard let data = try? Data(contentsOf: file),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let cwd = json["cwd"] as? String,
+                  let sessionId = json["sessionId"] as? String else { continue }
+
+            if cwd == workingDirectory {
+                let date = (try? file.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                if bestMatch == nil || date > bestMatch!.date {
+                    bestMatch = (sessionId, date)
+                }
+            }
+        }
+        return bestMatch?.id
     }
 }
