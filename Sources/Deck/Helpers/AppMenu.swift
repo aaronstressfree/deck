@@ -18,7 +18,10 @@ final class AppMenuManager: NSObject {
         self.toggleRawModeHandler = toggleRawModeHandler
         self.toggleDesignModeHandler = toggleDesignModeHandler
         super.init()
+        // Install immediately, then re-install after SwiftUI has had its turn
         installMenu()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.installMenu() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in self?.installMenu() }
     }
 
     private func installMenu() {
@@ -35,26 +38,6 @@ final class AppMenuManager: NSObject {
         fileMenu.addItem(mi("New Session...", #selector(newSessionSheet), "n", [.command, .shift]))
         fileMenu.addItem(NSMenuItem.separator())
         fileMenu.addItem(mi("Close Session", #selector(closeSession), "w"))
-
-        // --- Edit menu ---
-        // Don't replace the system Edit menu — SwiftUI provides a default one with
-        // Cut/Copy/Paste/Undo/Redo that works correctly through the responder chain.
-        // If no system Edit menu exists, create one.
-        if !mainMenu.items.contains(where: { $0.title == "Edit" }) {
-            let editMenu = NSMenu(title: "Edit")
-            let editItem = NSMenuItem(title: "Edit", action: nil, keyEquivalent: "")
-            editItem.submenu = editMenu
-            editMenu.addItem(NSMenuItem(title: "Undo", action: Selector(("undo:")), keyEquivalent: "z"))
-            editMenu.addItem(NSMenuItem(title: "Redo", action: Selector(("redo:")), keyEquivalent: "Z"))
-            editMenu.addItem(NSMenuItem.separator())
-            editMenu.addItem(NSMenuItem(title: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x"))
-            editMenu.addItem(NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c"))
-            editMenu.addItem(NSMenuItem(title: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v"))
-            editMenu.addItem(NSMenuItem(title: "Delete", action: #selector(NSText.delete(_:)), keyEquivalent: ""))
-            editMenu.addItem(NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"))
-            let pos = min(mainMenu.items.count, 1)
-            mainMenu.insertItem(editItem, at: pos)
-        }
 
         // --- View menu ---
         let viewMenu = NSMenu(title: "View")
@@ -84,28 +67,52 @@ final class AppMenuManager: NSObject {
             sessionMenu.addItem(item)
         }
 
-        // Insert custom menus into the existing menu bar
-        // Use insertItem to avoid fighting with SwiftUI's menu management
-        func insert(_ item: NSMenuItem, afterTitle: String) {
-            // Replace existing menu with same title, or insert after the target
-            if let i = mainMenu.items.firstIndex(where: { $0.title == item.title }) {
-                mainMenu.removeItem(at: i)
-                mainMenu.insertItem(item, at: i)
-            } else if let i = mainMenu.items.firstIndex(where: { $0.title == afterTitle }) {
-                mainMenu.insertItem(item, at: i + 1)
-            } else {
-                // Fallback: insert at position 1 (after app menu)
-                let pos = min(mainMenu.items.count, 1)
-                mainMenu.insertItem(item, at: pos)
-            }
+        // Build the full menu bar from scratch — SwiftUI fights with insertions
+        let appMenuItem = mainMenu.items.first  // Keep the app menu (Deck)
+        mainMenu.removeAllItems()
+        if let appMenuItem = appMenuItem {
+            mainMenu.addItem(appMenuItem)
+        }
+        mainMenu.addItem(fileItem)
+
+        // Re-add the Edit menu (system-provided or our fallback)
+        if let existingEdit = mainMenu.items.first(where: { $0.title == "Edit" }) {
+            // Already there from the block above
+            _ = existingEdit
+        } else {
+            // Add standard Edit menu
+            let editMenu = NSMenu(title: "Edit")
+            let editItem = NSMenuItem(title: "Edit", action: nil, keyEquivalent: "")
+            editItem.submenu = editMenu
+            editMenu.addItem(NSMenuItem(title: "Undo", action: Selector(("undo:")), keyEquivalent: "z"))
+            editMenu.addItem(NSMenuItem(title: "Redo", action: Selector(("redo:")), keyEquivalent: "Z"))
+            editMenu.addItem(NSMenuItem.separator())
+            editMenu.addItem(NSMenuItem(title: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x"))
+            editMenu.addItem(NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c"))
+            editMenu.addItem(NSMenuItem(title: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v"))
+            editMenu.addItem(NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"))
+            mainMenu.addItem(editItem)
         }
 
-        let appMenuTitle = mainMenu.items.first?.title ?? ""
-        insert(fileItem, afterTitle: appMenuTitle)
-        insert(viewItem, afterTitle: "Edit")
-        insert(sessionItem, afterTitle: "View")
+        mainMenu.addItem(viewItem)
+        mainMenu.addItem(sessionItem)
 
-        NSLog("[DECK] Menus inserted, total: \(mainMenu.items.count), titles: \(mainMenu.items.map(\.title))")
+        // Re-add Window and Help menus
+        let windowMenu = NSMenu(title: "Window")
+        let windowItem = NSMenuItem(title: "Window", action: nil, keyEquivalent: "")
+        windowItem.submenu = windowMenu
+        windowMenu.addItem(NSMenuItem(title: "Minimize", action: #selector(NSWindow.miniaturize(_:)), keyEquivalent: "m"))
+        windowMenu.addItem(NSMenuItem(title: "Zoom", action: #selector(NSWindow.zoom(_:)), keyEquivalent: ""))
+        mainMenu.addItem(windowItem)
+        NSApp.windowsMenu = windowMenu
+
+        let helpMenu = NSMenu(title: "Help")
+        let helpItem = NSMenuItem(title: "Help", action: nil, keyEquivalent: "")
+        helpItem.submenu = helpMenu
+        mainMenu.addItem(helpItem)
+        NSApp.helpMenu = helpMenu
+
+        NSLog("[DECK] Menu bar rebuilt: \(mainMenu.items.map(\.title))")
     }
 
     private func mi(_ title: String, _ action: Selector, _ key: String, _ mods: NSEvent.ModifierFlags = .command) -> NSMenuItem {
