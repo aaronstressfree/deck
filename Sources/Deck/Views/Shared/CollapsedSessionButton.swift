@@ -32,23 +32,7 @@ struct CollapsedSessionButton<Icon: View>: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
-        .popover(isPresented: $isHovered, arrowEdge: .trailing) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(session.displayName)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.primary)
-                Text(statusText)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(.background)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 4))
-        }
+        .help(session.displayName)
     }
 
     private var statusText: String {
