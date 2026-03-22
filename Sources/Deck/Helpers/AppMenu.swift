@@ -18,10 +18,23 @@ final class AppMenuManager: NSObject {
         self.toggleRawModeHandler = toggleRawModeHandler
         self.toggleDesignModeHandler = toggleDesignModeHandler
         super.init()
-        // Install immediately, then re-install after SwiftUI has had its turn
+        // Install menus and keep reinstalling until they stick.
+        // SwiftUI aggressively overwrites the menu bar on early run loop cycles.
         installMenu()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.installMenu() }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in self?.installMenu() }
+        var attempts = 0
+        Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak self] timer in
+            attempts += 1
+            guard let self else { timer.invalidate(); return }
+
+            // Check if our menus are still there
+            let titles = NSApplication.shared.mainMenu?.items.map(\.title) ?? []
+            if !titles.contains("File") || !titles.contains("Edit") || !titles.contains("Session") {
+                self.installMenu()
+            }
+
+            // Stop after 10 seconds — menus should be stable by then
+            if attempts > 33 { timer.invalidate() }
+        }
     }
 
     private func installMenu() {
