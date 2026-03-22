@@ -214,15 +214,11 @@ struct TerminalBridge: NSViewRepresentable {
                         execName: URL(fileURLWithPath: cmd).lastPathComponent)
         DispatchQueue.main.async { self.isRunning = true; self.agentStatus = .idle }
 
-        // Restore saved scrollback after process starts
-        if let scrollbackPath = scrollbackPath,
-           let saved = try? String(contentsOfFile: scrollbackPath, encoding: .utf8),
-           !saved.isEmpty {
-            // Feed as dimmed text so it's visually distinct from new output
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                let dimmed = "\u{1B}[2m" + saved + "\u{1B}[0m\r\n\u{1B}[2m--- session restored ---\u{1B}[0m\r\n"
-                tv.feed(text: dimmed)
-            }
+        // Clean up saved scrollback file (scrollback restore via feed() produces
+        // garbled output because the raw buffer contains escape sequences that don't
+        // re-render correctly. For Claude Code, --continue resumes the conversation
+        // which is more valuable than raw scrollback.)
+        if let scrollbackPath = scrollbackPath {
             try? FileManager.default.removeItem(atPath: scrollbackPath)
         }
     }

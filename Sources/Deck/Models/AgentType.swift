@@ -45,8 +45,8 @@ enum AgentType: String, Codable, Hashable, Sendable, CaseIterable {
             let continueFlag = continueSession ? " --continue" : ""
             return ["-l", "-i", "-c", "claude\(continueFlag) || { echo '\\n⚠ claude not found. Install: npm install -g @anthropic-ai/claude-code'; exec zsh -l; }"]
         case .amp:
-            let continueFlag = continueSession ? " --continue" : ""
-            return ["-l", "-i", "-c", "amp\(continueFlag) || { echo '\\n⚠ amp not found. Install: npm install -g @anthropic-ai/amp'; exec zsh -l; }"]
+            // Amp doesn't support --continue
+            return ["-l", "-i", "-c", "amp || { echo '\\n⚠ amp not found. Install: npm install -g @anthropic-ai/amp'; exec zsh -l; }"]
         case .shell:
             return ["--login", "-i"]
         }
