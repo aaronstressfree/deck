@@ -8,7 +8,6 @@ struct StatusBarView: View {
 
     @State private var gitBranch: String?
     @State private var isDirty: Bool = false
-    @State private var showUpdateCopied = false
 
     var body: some View {
         HStack(spacing: 0) {
@@ -34,25 +33,41 @@ struct StatusBarView: View {
 
                 Spacer()
 
-                // Update available indicator
-                if updateChecker.updateAvailable {
-                    Button(action: {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(UpdateChecker.installCommand, forType: .string)
-                        showUpdateCopied = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { showUpdateCopied = false }
-                    }) {
+                // Update indicator
+                if updateChecker.readyToRelaunch {
+                    Button(action: { updateChecker.relaunch() }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.clockwise.circle.fill")
+                                .font(.system(size: 11))
+                            Text("Relaunch to update")
+                                .font(.system(size: 11))
+                        }
+                        .foregroundStyle(theme.status.success.primary.swiftUIColor)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.trailing, 8)
+                } else if updateChecker.isInstalling {
+                    HStack(spacing: 4) {
+                        ProgressView()
+                            .controlSize(.mini)
+                        Text("Updating…")
+                            .font(.system(size: 11))
+                            .foregroundStyle(theme.text.tertiary.swiftUIColor)
+                    }
+                    .padding(.trailing, 8)
+                } else if updateChecker.updateAvailable {
+                    Button(action: { updateChecker.installUpdate() }) {
                         HStack(spacing: 4) {
                             Circle()
                                 .fill(theme.accent.primary.swiftUIColor)
                                 .frame(width: 6, height: 6)
-                            Text(showUpdateCopied ? "Copied!" : "Update available")
+                            Text("Update available")
                                 .font(.system(size: 11))
                                 .foregroundStyle(theme.accent.primary.swiftUIColor)
                         }
                     }
                     .buttonStyle(.plain)
-                    .help("Click to copy install command")
+                    .help("Click to update in background")
                     .padding(.trailing, 8)
                 }
 

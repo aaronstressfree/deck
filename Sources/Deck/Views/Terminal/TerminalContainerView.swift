@@ -120,7 +120,14 @@ struct TerminalContainerView: View {
         )
         .onChange(of: terminalTitle) { _, newTitle in
             if session.name == nil && !newTitle.isEmpty {
-                session.autoName = newTitle
+                // Strip spinner/sparkle characters that Claude Code puts in OSC titles
+                let cleaned = newTitle
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .replacingOccurrences(of: #"^[✳⠂⠐⠈⠑⠡⡀⢀⠠⠄⠁⠿\s]+"#, with: "", options: .regularExpression)
+                    .trimmingCharacters(in: .whitespaces)
+                if !cleaned.isEmpty {
+                    session.autoName = cleaned
+                }
             }
         }
     }

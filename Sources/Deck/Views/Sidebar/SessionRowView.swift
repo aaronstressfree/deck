@@ -37,12 +37,12 @@ struct SessionRowView: View {
 
     var body: some View {
         HStack(spacing: 7) {
-            // Agent icon with status color
+            // Agent icon with brand color
             Image(systemName: session.agentType.iconName)
                 .font(.system(size: 12))
-                .foregroundStyle(statusColor)
+                .foregroundStyle(agentBrandColor)
                 .frame(width: 14)
-                .opacity(statusDotOpacity)
+                .opacity(session.agentStatus.isActive ? 0.5 : 1.0)
                 .animation(
                     session.agentStatus.isActive
                         ? .easeInOut(duration: 0.8).repeatForever(autoreverses: true)
@@ -193,6 +193,14 @@ struct SessionRowView: View {
             return theme.status.warning.primary.swiftUIColor.opacity(0.85)
         }
         return theme.text.quaternary.swiftUIColor
+    }
+
+    private var agentBrandColor: Color {
+        switch session.agentType {
+        case .claude: return Color(red: 0.90, green: 0.55, blue: 0.25) // Claude orange
+        case .amp: return Color(red: 0.55, green: 0.82, blue: 0.78)    // Amp pale blue-green
+        case .shell: return theme.text.tertiary.swiftUIColor
+        }
     }
 
     private var statusDotOpacity: Double {

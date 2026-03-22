@@ -1,10 +1,13 @@
 import Foundation
+import AppKit
 
 /// Checks GitHub for newer releases and reports availability.
 /// Checks at most once per day to avoid spamming the API.
 @MainActor
 final class UpdateChecker: ObservableObject {
     @Published var updateAvailable: Bool = false
+    @Published var isInstalling: Bool = false
+    @Published var readyToRelaunch: Bool = false
     @Published var latestVersion: String = ""
 
     private static let repo = "aaronstressfree/deck"
@@ -65,4 +68,46 @@ final class UpdateChecker: ObservableObject {
 
     /// The install command users should run
     static let installCommand = "curl -sL https://raw.githubusercontent.com/\(repo)/main/scripts/install.sh | bash"
+
+    /// Download and install the update in the background, then prompt to relaunch
+    func installUpdate() {
+        guard updateAvailable else { return }
+        isInstalling = true
+
+        Task.detached {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/bin/bash")
+            process.arguments = ["-c", Self.installCommand]
+            process.standardOutput = FileHandle.nullDevice
+            process.standardError = FileHandle.nullDevice
+
+            do {
+                try process.run()
+                process.waitUntilExit()
+
+                if process.terminationStatus == 0 {
+                    await MainActor.run {
+                        self.updateAvailable = false
+                        self.isInstalling = false
+                        self.readyToRelaunch = true
+                    }
+                } else {
+                    await MainActor.run { self.isInstalling = false }
+                }
+            } catch {
+                await MainActor.run { self.isInstalling = false }
+                NSLog("[DECK] Update install failed: \(error)")
+            }
+        }
+    }
+
+    /// Relaunch the app after update
+    func relaunch() {
+        let url = URL(fileURLWithPath: "/Applications/Deck.app")
+        let config = NSWorkspace.OpenConfiguration()
+        config.createsNewApplicationInstance = true
+        NSWorkspace.shared.openApplication(at: url, configuration: config) { _, _ in
+            DispatchQueue.main.async { NSApp.terminate(nil) }
+        }
+    }
 }
