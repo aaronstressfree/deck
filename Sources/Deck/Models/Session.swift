@@ -38,6 +38,7 @@ struct Session: Identifiable, Codable, Hashable {
     // Agent-specific options
     var claudeModel: String?         // --model flag for Claude
     var claudeContinue: Bool         // --continue flag for Claude
+    var agentSessionId: String?      // Claude/Amp session ID for --resume on relaunch
 
     /// Display name: manual name or auto-generated name
     var displayName: String {

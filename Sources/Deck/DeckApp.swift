@@ -10,7 +10,6 @@ class DeckAppDelegate: NSObject, NSApplicationDelegate {
     private var menuTimer: Timer?
 
     func applicationWillTerminate(_ notification: Notification) {
-        // Save terminal scrollback for each session so it can be restored on relaunch
         guard let sm = sessionManager else { return }
         let scrollbackDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
             .appendingPathComponent("Deck/Scrollback", isDirectory: true)
@@ -18,14 +17,46 @@ class DeckAppDelegate: NSObject, NSApplicationDelegate {
 
         for i in sm.sessions.indices {
             let session = sm.sessions[i]
+
+            // Save scrollback
             let path = scrollbackDir.appendingPathComponent("\(session.id.uuidString).txt").path
             if let controller = sm.terminalControllers[session.id] {
                 controller.saveScrollback(to: path)
                 sm.sessions[i].scrollbackPath = path
             }
+
+            // Capture Claude/Amp session ID for --resume on relaunch
+            if session.agentType == .claude {
+                if let sessionId = findClaudeSessionId(for: session.workingDirectory) {
+                    sm.sessions[i].agentSessionId = sessionId
+                }
+            }
         }
-        // Save state one final time with scrollback paths
         sm.saveStatePublic()
+    }
+
+    /// Find the most recent Claude Code session ID for a given working directory.
+    private func findClaudeSessionId(for workingDirectory: String) -> String? {
+        let sessionsDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".claude/sessions")
+        guard let files = try? FileManager.default.contentsOfDirectory(at: sessionsDir, includingPropertiesForKeys: [.contentModificationDateKey]) else { return nil }
+
+        // Find the most recently modified session file matching this cwd
+        var bestMatch: (id: String, date: Date)?
+        for file in files where file.pathExtension == "json" {
+            guard let data = try? Data(contentsOf: file),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let cwd = json["cwd"] as? String,
+                  let sessionId = json["sessionId"] as? String else { continue }
+
+            if cwd == workingDirectory {
+                let date = (try? file.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                if bestMatch == nil || date > bestMatch!.date {
+                    bestMatch = (sessionId, date)
+                }
+            }
+        }
+        return bestMatch?.id
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {

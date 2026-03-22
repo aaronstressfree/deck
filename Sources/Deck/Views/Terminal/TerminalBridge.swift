@@ -164,6 +164,7 @@ struct TerminalBridge: NSViewRepresentable {
     let isChatMode: Bool
     var continueSession: Bool = false
     var scrollbackPath: String? = nil
+    var agentSessionId: String? = nil
 
     @Binding var terminalTitle: String
     @Binding var agentStatus: AgentStatus
@@ -233,7 +234,7 @@ struct TerminalBridge: NSViewRepresentable {
         guard !context.coordinator.hasStarted else { return }
         context.coordinator.hasStarted = true
         let cmd = agentType.command
-        let args = agentType.arguments(continueSession: continueSession)
+        let args = agentType.arguments(continueSession: continueSession, resumeSessionId: agentSessionId)
 
         // Inherit process env, override BROWSER, and prepend ~/.deck/bin to PATH
         // so Deck's `open` wrapper intercepts URL opens from agents
