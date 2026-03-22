@@ -24,6 +24,9 @@ struct SettingsView: View {
 
             ThemeEditorView()
                 .tabItem { Label("Themes", systemImage: "paintpalette") }
+
+            FeedbackView()
+                .tabItem { Label("Feedback", systemImage: "bubble.left.and.exclamationmark.bubble.right") }
         }
         .frame(minWidth: 700, minHeight: 550)
         .frame(width: 780, height: 600)

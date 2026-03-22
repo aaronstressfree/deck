@@ -29,18 +29,6 @@ struct SessionGroupView: View {
             // Project header
             projectHeader
 
-            // Directory path (when expanded)
-            if !group.isCollapsed, let dir = group.workingDirectory {
-                Text(truncatedPath(dir))
-                    .font(.system(size: 12))
-                    .foregroundStyle(theme.text.quaternary.swiftUIColor)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .padding(.horizontal, 23)
-                    .padding(.bottom, 2)
-                    .help(dir)
-            }
-
             // Sessions when expanded
             if !group.isCollapsed {
                 ForEach(sessions) { session in

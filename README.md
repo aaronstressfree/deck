@@ -128,4 +128,80 @@ Make sure your dev server is running. Press Cmd+L to focus the URL bar and type 
 
 ## Feedback
 
-File issues at [github.com/aaronstressfree/deck/issues](https://github.com/aaronstressfree/deck/issues) or message Aaron directly.
+File issues at [github.com/aaronstressfree/deck/issues](https://github.com/aaronstressfree/deck/issues), or use **Settings → Feedback** inside the app to submit directly.
+
+## Architecture
+
+Deck is a native macOS app built with Swift and SwiftUI. No Electron, no web views for the UI — just the terminal and browser preview use web technologies.
+
+### Tech stack
+
+- **SwiftUI** — All UI views, sidebar, settings, design inspector
+- **SwiftTerm** — Terminal emulator (PTY management, escape sequence parsing)
+- **WKWebView** — Browser preview pane with JavaScript bridge for element inspection
+- **Swift Package Manager** — Build system and dependency management
+
+### How it works
+
+```
+┌──────────────────────────────────────────────────────┐
+│ Deck.app                                              │
+├──────────┬───────────────────────────────────────────┤
+│ Sidebar  │  Terminal (SwiftTerm)  │  Browser (WKWeb) │
+│          │                       │                   │
+│ Projects │  TerminalBridge ←→ PTY │  WebViewBridge    │
+│ Sessions │  AgentOutputParser     │  JS Inspect Mode  │
+│          │  ChatInputView         │  Design Panel     │
+├──────────┴───────────────────────┴───────────────────┤
+│ StatusBar │ StatusPoller │ DeckContext │ SessionMgr    │
+└──────────────────────────────────────────────────────┘
+```
+
+### Key concepts
+
+| Concept | What it is |
+|---------|------------|
+| **Session** | A terminal process (PTY). Each session has its own agent (Claude/Amp/Shell), working directory, and browser tabs. |
+| **Project** | A group of related sessions, mapped to a git repository root. Auto-created from working directories. Shares instructions and context across all sessions. |
+| **TerminalController** | Manages a `LocalProcessTerminalView` from SwiftTerm. Handles buffer reading, cursor visibility, and process lifecycle. |
+| **StatusPoller** | Polls terminal output every 2 seconds to detect agent status (Thinking, Writing, Running, etc.) via title parsing and buffer keyword matching. |
+| **DeckContext** | Writes context files (CLAUDE.md, .deck-context.md) so AI agents know about sibling sessions, project instructions, and Deck's tools. |
+| **SessionIntelligence** | Optional AI-powered naming and project name enhancement. Uses Anthropic API (Haiku) when an API key is configured. Fully optional — app works without it. |
+| **DesignModeManager** | Manages the browser element inspector. Injects JavaScript for hover highlighting and click selection, reads computed styles, and applies live CSS changes. |
+
+### Project-first model
+
+Deck organizes sessions into projects automatically:
+
+1. When you create a session, `GitDetector.rootDirectory(for:)` finds the git repo root
+2. `SessionManager.resolveProject(for:)` finds or creates a matching project
+3. Every session belongs to a project — no orphaned tabs
+4. Projects share instructions and context via `DeckContext`
+5. AI naming (optional) enhances generic directory names ("java" → "Square Monorepo")
+
+### File structure
+
+```
+Sources/Deck/
+├── Models/          # Session, SessionGroup (Project), AgentStatus, etc.
+├── ViewModels/      # SessionManager, StatusPoller, DesignModeManager
+├── Helpers/         # GitDetector, DeckContext, AnthropicClient, SessionIntelligence
+├── Views/
+│   ├── Sidebar/     # SidebarView, SessionGroupView, SessionRowView
+│   ├── Terminal/    # TerminalBridge, ChatInputView, AgentOutputParser
+│   ├── Browser/     # BrowserPaneView, WebViewBridge, DeviceFrameView
+│   ├── DesignMode/  # DesignPanelView, color/spacing/typography sections
+│   ├── Settings/    # General, Appearance, Terminal, Context, Themes, Feedback
+│   └── StatusBar/   # StatusBarView
+├── Theme/           # Theme system, built-in themes, sharing
+└── DeckApp.swift    # App entry point, window configuration
+```
+
+### Performance design
+
+- **Terminal buffer scanning** uses preallocated character buffers and skips unchanged sessions
+- **Git root lookups** are cached after first call per directory
+- **Sidebar sorting** precomputes activity indices in O(n) instead of O(n²)
+- **Context file writes** happen on a background thread with 10-second debounce
+- **All sessions stay alive** in a ZStack for instant tab switching (no process restart)
+- **AI features are progressive** — zero overhead when no API key is set
