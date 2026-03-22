@@ -13,7 +13,12 @@ let package = Package(
         .executableTarget(
             name: "Deck",
             dependencies: ["SwiftTerm"],
-            path: "Sources/Deck"
+            path: "Sources/Deck",
+            resources: [
+                .copy("Resources/claude-icon.png"),
+                .copy("Resources/claude-icon@2x.png"),
+                .copy("Resources/AppIcon.icns"),
+            ]
         ),
         .testTarget(
             name: "DeckTests",

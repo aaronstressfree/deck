@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct TerminalSettingsView: View {
-    @AppStorage("terminalFontSize") private var fontSize: Double = 13
+    @AppStorage("terminalFontFamily") private var fontFamily: String = "auto"
+    @AppStorage("terminalFontSize") private var fontSize: Double = 14
     @AppStorage("terminalLineHeight") private var lineHeight: Double = 1.2
     @AppStorage("terminalCursorStyle") private var cursorStyle = "block"
     @AppStorage("terminalCursorBlink") private var cursorBlink = true
@@ -11,15 +12,25 @@ struct TerminalSettingsView: View {
     var body: some View {
         Form {
             Section("Font") {
+                Picker("Font Family", selection: $fontFamily) {
+                    Text("Auto (best available)").tag("auto")
+                    Divider()
+                    ForEach(availableFonts, id: \.self) { font in
+                        Text(font)
+                            .font(.custom(font, size: 14))
+                            .tag(font)
+                    }
+                }
+
                 HStack {
                     Text("Font Size")
                     Spacer()
-                    Slider(value: $fontSize, in: 8...24, step: 1) {
+                    Slider(value: $fontSize, in: 10...24, step: 1) {
                         Text("Font Size")
                     }
                     .frame(width: 200)
                     Text("\(Int(fontSize))pt")
-                        .font(.system(size: 12, design: .monospaced))
+                        .font(.system(size: 14, design: .monospaced))
                         .frame(width: 40)
                 }
 
@@ -68,5 +79,21 @@ struct TerminalSettingsView: View {
         }
         .formStyle(.grouped)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Monospace fonts available on this system, in preference order
+    private var availableFonts: [String] {
+        let preferred = [
+            "JetBrains Mono",
+            "Fira Code",
+            "Cascadia Code",
+            "Monaspace Neon",
+            "Menlo",
+            "SF Mono",
+            "Monaco",
+            "Courier New",
+        ]
+        let installed = Set(NSFontManager.shared.availableFontFamilies)
+        return preferred.filter { installed.contains($0) }
     }
 }

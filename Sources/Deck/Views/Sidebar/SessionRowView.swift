@@ -37,11 +37,9 @@ struct SessionRowView: View {
 
     var body: some View {
         HStack(spacing: 7) {
-            // Agent icon with brand color
-            Image(systemName: session.agentType.iconName)
-                .font(.system(size: 12))
-                .foregroundStyle(agentBrandColor)
-                .frame(width: 14)
+            // Agent icon — real brand icon for Claude, SF Symbol for others
+            agentIcon
+                .frame(width: 16, height: 16)
                 .opacity(session.agentStatus.isActive ? 0.5 : 1.0)
                 .animation(
                     session.agentStatus.isActive
@@ -183,6 +181,34 @@ struct SessionRowView: View {
             return theme.status.warning.primary.swiftUIColor.opacity(0.85)
         }
         return theme.text.quaternary.swiftUIColor
+    }
+
+    @ViewBuilder
+    private var agentIcon: some View {
+        switch session.agentType {
+        case .claude:
+            // Use real Claude icon from bundle, tinted orange
+            if let url = Bundle.module.url(forResource: "claude-icon", withExtension: "png"),
+               let img = NSImage(contentsOf: url) {
+                Image(nsImage: img)
+                    .resizable()
+                    .renderingMode(.template)
+                    .foregroundStyle(agentBrandColor)
+                    .frame(width: 14, height: 14)
+            } else {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 12))
+                    .foregroundStyle(agentBrandColor)
+            }
+        case .amp:
+            Image(systemName: "bolt.fill")
+                .font(.system(size: 12))
+                .foregroundStyle(agentBrandColor)
+        case .shell:
+            Image(systemName: "terminal.fill")
+                .font(.system(size: 11))
+                .foregroundStyle(agentBrandColor)
+        }
     }
 
     private var agentBrandColor: Color {

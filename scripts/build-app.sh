@@ -27,6 +27,11 @@ if [ -f "AppIcon.icns" ]; then
     cp AppIcon.icns "$APP_DIR/Contents/Resources/AppIcon.icns"
 fi
 
+# Copy Deck resource bundle (icons, etc.)
+if [ -d ".build/debug/Deck_Deck.bundle" ]; then
+    cp -r .build/debug/Deck_Deck.bundle "$APP_DIR/Contents/Resources/"
+fi
+
 # Copy SwiftTerm resources if present
 if [ -d ".build/debug/SwiftTerm_SwiftTerm.bundle" ]; then
     cp -r .build/debug/SwiftTerm_SwiftTerm.bundle "$APP_DIR/Contents/Resources/"

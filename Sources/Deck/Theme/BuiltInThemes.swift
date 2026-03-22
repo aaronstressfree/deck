@@ -14,15 +14,15 @@ extension Theme {
             isBuiltIn: true
         ),
         surfaces: SurfaceColors(
-            primary: ThemeColor(hex: "121215"),
-            inset: ThemeColor(hex: "0C0C0E"),
-            elevated: ThemeColor(hex: "1E1E22"),
-            overlay: ThemeColor(red: 0, green: 0, blue: 0, opacity: 0.60),
-            hover: ThemeColor(hex: "27272B"),
-            active: ThemeColor(hex: "303036"),
+            primary: ThemeColor(hex: "18181B"),
+            inset: ThemeColor(hex: "131316"),
+            elevated: ThemeColor(hex: "222226"),
+            overlay: ThemeColor(red: 0, green: 0, blue: 0, opacity: 0.55),
+            hover: ThemeColor(hex: "2A2A2F"),
+            active: ThemeColor(hex: "333338"),
             selected: ThemeColor(red: 0.231, green: 0.510, blue: 0.965, opacity: 0.12),
             selectedHover: ThemeColor(red: 0.231, green: 0.510, blue: 0.965, opacity: 0.18),
-            bar: ThemeColor(hex: "0C0C0E"),
+            bar: ThemeColor(hex: "131316"),
             subtle: ThemeColor(red: 1, green: 1, blue: 1, opacity: 0.03)
         ),
         borders: BorderColors(
@@ -35,7 +35,7 @@ extension Theme {
             warning: ThemeColor(hex: "F59E0B")
         ),
         text: TextColors(
-            primary: ThemeColor(hex: "FAFAFA"),
+            primary: ThemeColor(hex: "E4E4E7"),
             secondary: ThemeColor(hex: "A1A1AA"),
             tertiary: ThemeColor(hex: "71717A"),
             quaternary: ThemeColor(hex: "52525B"),
@@ -89,28 +89,28 @@ extension Theme {
             dropTargetBorder: ThemeColor(hex: "3B82F6")
         ),
         terminal: TerminalColors(
-            background: ThemeColor(hex: "0C0C0E"),
-            foreground: ThemeColor(hex: "D4D4D8"),
+            background: ThemeColor(hex: "131316"),
+            foreground: ThemeColor(hex: "C8C8CD"),
             cursor: ThemeColor(hex: "3B82F6"),
-            cursorText: ThemeColor(hex: "0C0C0E"),
-            selection: ThemeColor(red: 0.231, green: 0.510, blue: 0.965, opacity: 0.30),
+            cursorText: ThemeColor(hex: "131316"),
+            selection: ThemeColor(red: 0.231, green: 0.510, blue: 0.965, opacity: 0.25),
             ansi: AnsiPalette(
-                black: ThemeColor(hex: "27272B"),
-                red: ThemeColor(hex: "F87171"),
-                green: ThemeColor(hex: "4ADE80"),
-                yellow: ThemeColor(hex: "FACC15"),
-                blue: ThemeColor(hex: "60A5FA"),
-                magenta: ThemeColor(hex: "C084FC"),
-                cyan: ThemeColor(hex: "22D3EE"),
-                white: ThemeColor(hex: "D4D4D8"),
+                black: ThemeColor(hex: "2A2A2F"),
+                red: ThemeColor(hex: "E87070"),
+                green: ThemeColor(hex: "45C878"),
+                yellow: ThemeColor(hex: "E8BC28"),
+                blue: ThemeColor(hex: "5B9BE8"),
+                magenta: ThemeColor(hex: "B07CE8"),
+                cyan: ThemeColor(hex: "2CC8D8"),
+                white: ThemeColor(hex: "C8C8CD"),
                 brightBlack: ThemeColor(hex: "52525B"),
-                brightRed: ThemeColor(hex: "FCA5A5"),
-                brightGreen: ThemeColor(hex: "86EFAC"),
-                brightYellow: ThemeColor(hex: "FDE68A"),
-                brightBlue: ThemeColor(hex: "93C5FD"),
-                brightMagenta: ThemeColor(hex: "D8B4FE"),
-                brightCyan: ThemeColor(hex: "67E8F9"),
-                brightWhite: ThemeColor(hex: "FAFAFA")
+                brightRed: ThemeColor(hex: "E89898"),
+                brightGreen: ThemeColor(hex: "78D8A0"),
+                brightYellow: ThemeColor(hex: "E8D080"),
+                brightBlue: ThemeColor(hex: "88B8E8"),
+                brightMagenta: ThemeColor(hex: "C8A8E8"),
+                brightCyan: ThemeColor(hex: "60D0E0"),
+                brightWhite: ThemeColor(hex: "E4E4E7")
             )
         )
     )

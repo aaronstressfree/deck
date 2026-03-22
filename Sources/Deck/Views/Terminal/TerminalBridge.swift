@@ -133,6 +133,24 @@ struct TerminalBridge: NSViewRepresentable {
     let agentType: AgentType
     let workingDirectory: String
     let theme: Theme
+
+    /// Resolve the terminal font from user settings, with auto-detection fallback
+    static func resolveFont() -> NSFont {
+        let family = UserDefaults.standard.string(forKey: "terminalFontFamily") ?? "auto"
+        let rawSize = UserDefaults.standard.double(forKey: "terminalFontSize")
+        let size = CGFloat(rawSize > 0 ? min(max(rawSize, 10), 24) : 14)
+
+        if family != "auto", let font = NSFont(name: family, size: size) {
+            return font
+        }
+
+        // Auto: try premium fonts in preference order
+        return NSFont(name: "JetBrains Mono", size: size)
+            ?? NSFont(name: "Fira Code", size: size)
+            ?? NSFont(name: "Cascadia Code", size: size)
+            ?? NSFont(name: "Menlo", size: size)
+            ?? NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
+    }
     let controller: TerminalController
     let isChatMode: Bool
     var continueSession: Bool = false
@@ -171,7 +189,7 @@ struct TerminalBridge: NSViewRepresentable {
         let tv = LocalProcessTerminalView(frame: .zero)
         tv.processDelegate = context.coordinator
         applyTheme(to: tv)
-        tv.font = NSFont.monospacedSystemFont(ofSize: 14, weight: .regular)
+        tv.font = Self.resolveFont()
         controller.setTerminalView(tv)
         startProcess(tv: tv, context: context)
 
