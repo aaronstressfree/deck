@@ -65,7 +65,7 @@ struct ChatInputView: View {
             .background(RoundedRectangle(cornerRadius: 4).fill(theme.accent.subtle.swiftUIColor))
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .padding(.vertical, 8)
         .background(theme.surfaces.elevated.swiftUIColor)
     }
 
@@ -115,7 +115,7 @@ struct ChatInputView: View {
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .padding(.vertical, 8)
         .background(theme.surfaces.elevated.swiftUIColor)
         .contentShape(Rectangle())
         .onTapGesture { focusTrigger = UUID() }
@@ -264,6 +264,13 @@ struct ChatInputView: View {
     private func handleDroppedURLs(_ urls: [URL]) {
         attachFileURLs(urls)
         focusTrigger = UUID()
+    }
+
+    /// Remove temp images saved by paste. Call when closing a session.
+    static func cleanupTempImages() {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("deck-images")
+        try? FileManager.default.removeItem(at: tempDir)
     }
 }
 
