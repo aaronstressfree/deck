@@ -19,12 +19,18 @@ enum FullDiskAccess {
     }
 
     /// Show the onboarding alert if FDA isn't granted.
-    /// Checks every launch until granted, but only shows the dialog once per day.
+    /// Only asks once — after that, the user must go to Settings manually.
     static func requestIfNeeded() {
-        // Already have access — nothing to do
         if isGranted { return }
 
+        let key = "hasAskedForFullDiskAccess"
+        if UserDefaults.standard.bool(forKey: key) { return }
+        UserDefaults.standard.set(true, forKey: key)
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            // Double-check — FDA might have been granted during the delay
+            if isGranted { return }
+
             let alert = NSAlert()
             alert.messageText = "Grant Full Disk Access"
             alert.informativeText = "Deck needs Full Disk Access to work like a normal terminal — without per-folder permission popups.\n\nSystem Settings → Privacy & Security → Full Disk Access → enable Deck."
