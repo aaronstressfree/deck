@@ -53,7 +53,6 @@ struct CollapsedSessionButton<Icon: View>: View {
 
     private func showTooltip() {
         hideTooltip()
-        guard let wf = NSApp.keyWindow?.frame else { return }
 
         let name = session.displayName
         let status = statusText
@@ -67,11 +66,11 @@ struct CollapsedSessionButton<Icon: View>: View {
         let w = max(nameSize.width, statusSize.width) + pad * 2
         let h = nameSize.height + statusSize.height + 4 + pad * 2
 
-        // frame is in SwiftUI global coords (origin top-left of window content)
-        // Convert to screen coords (origin bottom-left of screen)
-        let sidebarWidth: CGFloat = 44 // collapsed sidebar width
-        let x = wf.minX + sidebarWidth + 4
-        let y = wf.maxY - frame.midY - h / 2
+        // frame is SwiftUI .global = screen coords, origin top-left
+        // NSWindow screen coords have origin bottom-left
+        let screenH = NSScreen.main?.frame.height ?? 1000
+        let x = frame.maxX + 8
+        let y = screenH - frame.midY - h / 2
 
         let win = NSWindow(contentRect: NSRect(x: x, y: y, width: w, height: h),
                            styleMask: .borderless, backing: .buffered, defer: false)
