@@ -24,13 +24,6 @@ enum FullDiskAccess {
         // Already have access — nothing to do
         if isGranted { return }
 
-        // Don't pester more than once per day
-        let key = "lastFDARequestDate"
-        let lastRequest = UserDefaults.standard.double(forKey: key)
-        let oneDayAgo = Date().timeIntervalSince1970 - 86400
-        if lastRequest > oneDayAgo { return }
-        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: key)
-
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             let alert = NSAlert()
             alert.messageText = "Grant Full Disk Access"
