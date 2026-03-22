@@ -1,7 +1,7 @@
 import SwiftUI
 import AppKit
 
-/// A collapsed sidebar icon button that shows a popover tooltip to the right on hover.
+/// A collapsed sidebar icon button that shows a popover tooltip on hover.
 struct CollapsedSessionButton<Icon: View>: View {
     let session: Session
     let isActive: Bool
@@ -10,7 +10,6 @@ struct CollapsedSessionButton<Icon: View>: View {
     @ViewBuilder let icon: Icon
 
     @State private var isHovered = false
-    @State private var popover: NSPopover?
 
     var body: some View {
         Button(action: onSelect) {
@@ -28,122 +27,30 @@ struct CollapsedSessionButton<Icon: View>: View {
             .frame(width: 32, height: 28)
             .background(
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(isActive ? theme.surfaces.selected.swiftUIColor : Color.clear)
+                    .fill(isActive ? theme.surfaces.selected.swiftUIColor : (isHovered ? theme.surfaces.hover.swiftUIColor : Color.clear))
             )
         }
-        .buttonStyle(HoverButtonStyle(hoverColor: theme.surfaces.hover.swiftUIColor))
-        .overlay(
-            // Invisible anchor view for the popover
-            TooltipAnchor(
-                text: session.displayName,
-                session: session,
-                isHovered: $isHovered,
-                popover: $popover
-            )
-            .frame(width: 1, height: 1)
-            .allowsHitTesting(false)
-        )
-        .onHover { hovering in
-            isHovered = hovering
-        }
-    }
-}
-
-/// NSViewRepresentable that manages an NSPopover tooltip anchored to this view.
-private struct TooltipAnchor: NSViewRepresentable {
-    let text: String
-    let session: Session
-    @Binding var isHovered: Bool
-    @Binding var popover: NSPopover?
-
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView(frame: .zero)
-        context.coordinator.anchorView = view
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        context.coordinator.text = text
-        if isHovered && popover == nil {
-            // Show after tiny delay to avoid flicker
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                guard self.isHovered else { return }
-                context.coordinator.showPopover()
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .popover(isPresented: $isHovered, arrowEdge: .trailing) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(session.displayName)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.primary)
+                Text(statusText)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
             }
-        } else if !isHovered && popover != nil {
-            context.coordinator.hidePopover()
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
         }
     }
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator(parent: self)
-    }
-
-    class Coordinator {
-        var parent: TooltipAnchor
-        weak var anchorView: NSView?
-        var text: String = ""
-
-        init(parent: TooltipAnchor) {
-            self.parent = parent
+    private var statusText: String {
+        if !session.isRunning {
+            if let code = session.exitCode, code != 0 { return "Exited (\(code))" }
+            return "Ready"
         }
-
-        func showPopover() {
-            guard let anchor = anchorView, anchor.window != nil else { return }
-            guard parent.popover == nil else { return }
-
-            // Session name
-            let nameLabel = NSTextField(labelWithString: text)
-            nameLabel.font = .systemFont(ofSize: 13, weight: .semibold)
-            nameLabel.textColor = .white
-            nameLabel.backgroundColor = .clear
-            nameLabel.isBordered = false
-            nameLabel.isEditable = false
-            nameLabel.sizeToFit()
-
-            // Status line
-            let status = parent.session.isRunning
-                ? parent.session.agentStatus.label
-                : (parent.session.exitCode != nil && parent.session.exitCode != 0 ? "Exited" : "Ready")
-            let statusLabel = NSTextField(labelWithString: status)
-            statusLabel.font = .systemFont(ofSize: 11, weight: .regular)
-            statusLabel.textColor = NSColor.white.withAlphaComponent(0.5)
-            statusLabel.backgroundColor = .clear
-            statusLabel.isBordered = false
-            statusLabel.isEditable = false
-            statusLabel.sizeToFit()
-
-            let hPad: CGFloat = 14
-            let vPad: CGFloat = 10
-            let width = max(nameLabel.frame.width, statusLabel.frame.width) + hPad * 2
-            let height = nameLabel.frame.height + statusLabel.frame.height + 4 + vPad * 2
-
-            let contentView = NSView(frame: NSRect(x: 0, y: 0, width: width, height: height))
-            statusLabel.frame.origin = NSPoint(x: hPad, y: vPad)
-            nameLabel.frame.origin = NSPoint(x: hPad, y: vPad + statusLabel.frame.height + 4)
-            contentView.addSubview(nameLabel)
-            contentView.addSubview(statusLabel)
-
-            let vc = NSViewController()
-            vc.view = contentView
-
-            let pop = NSPopover()
-            pop.contentViewController = vc
-            pop.behavior = .semitransient
-            pop.animates = true
-            // Dark appearance for modern look
-            pop.appearance = NSAppearance(named: .darkAqua)
-
-            // Show with offset — use a wider rect to push it further right
-            let offsetRect = NSRect(x: anchor.bounds.maxX + 8, y: 0, width: 1, height: anchor.bounds.height)
-            pop.show(relativeTo: offsetRect, of: anchor, preferredEdge: .maxX)
-
-            parent.popover = pop
-        }
-
-        func hidePopover() {
-            parent.popover?.performClose(nil)
-            parent.popover = nil
-        }
+        return session.agentStatus.label
     }
 }
