@@ -25,8 +25,8 @@ final class ThemeManager: ObservableObject {
         self.availableThemes = themes
 
         // Restore active theme
-        let savedId = UserDefaults.standard.string(forKey: activeThemeKey) ?? "obsidian"
-        self.activeTheme = themes.first(where: { $0.id == savedId }) ?? .obsidian
+        let savedId = UserDefaults.standard.string(forKey: activeThemeKey) ?? "midnight-rose"
+        self.activeTheme = themes.first(where: { $0.id == savedId }) ?? .midnightRose
     }
 
     func setActiveTheme(_ theme: Theme) {
