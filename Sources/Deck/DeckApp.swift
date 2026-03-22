@@ -1,0 +1,100 @@
+import SwiftUI
+import AppKit
+
+class DeckAppDelegate: NSObject, NSApplicationDelegate {
+    var menuManager: AppMenuManager?
+    var sessionManager: SessionManager?
+    var designMode: DesignModeManager?
+    var urlBarFocusHandler: (() -> Void)?
+    var newSessionSheetHandler: (() -> Void)?
+    private var menuTimer: Timer?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NSLog("[DECK] App launched, starting menu install timer")
+        try? "launch: \(Date())\n".write(toFile: "/tmp/deck-debug.log", atomically: true, encoding: .utf8)
+        // Poll until state objects are available (set by DeckApp body evaluation)
+        menuTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] timer in
+            guard let self else { timer.invalidate(); return }
+            if self.menuManager != nil { timer.invalidate(); return }
+            guard let sm = self.sessionManager, let dm = self.designMode else {
+                NSLog("[DECK] Waiting for state objects...")
+                return
+            }
+            timer.invalidate()
+            self.menuTimer = nil
+            self.menuManager = AppMenuManager(
+                sessionManager: sm,
+                urlBarFocusHandler: { [weak self] in self?.urlBarFocusHandler?() },
+                newSessionSheetHandler: { [weak self] in self?.newSessionSheetHandler?() },
+                toggleRawModeHandler: {
+                    if let id = sm.activeSessionId {
+                        sm.toggleChatMode(for: id)
+                    }
+                },
+                toggleDesignModeHandler: { [weak dm] in dm?.toggleInspect() }
+            )
+            NSLog("[DECK] Menu manager installed via timer")
+        }
+    }
+}
+
+@main
+struct DeckApp: App {
+    @NSApplicationDelegateAdaptor(DeckAppDelegate.self) var appDelegate
+    @StateObject private var themeManager = ThemeManager()
+    @StateObject private var sessionManager = SessionManager()
+    @StateObject private var designMode = DesignModeManager()
+    @State private var showNewSessionSheet = false
+    @State private var urlBarFocused = false
+
+    var body: some Scene {
+        // Set delegate references on every body evaluation
+        let _ = {
+            if appDelegate.sessionManager == nil {
+                appDelegate.sessionManager = sessionManager
+                appDelegate.designMode = designMode
+                appDelegate.urlBarFocusHandler = { urlBarFocused = true }
+                appDelegate.newSessionSheetHandler = { showNewSessionSheet = true }
+                try? "body set refs: \(Date())\n".write(toFile: "/tmp/deck-debug-body.log", atomically: true, encoding: .utf8)
+            }
+        }()
+
+        WindowGroup {
+            ContentView(appDelegate: appDelegate, sessionManager: sessionManager, urlBarFocused: $urlBarFocused, showNewSessionSheet: $showNewSessionSheet)
+                .environment(\.deckTheme, themeManager.activeTheme)
+                .environment(\.colorScheme, themeManager.activeTheme.metadata.colorScheme == .dark ? .dark : .light)
+                .environmentObject(themeManager)
+                .environmentObject(designMode)
+                .environmentObject(sessionManager)
+                .onAppear { FullDiskAccess.requestIfNeeded() }
+                .onOpenURL { url in themeManager.handleShareURL(url) }
+                .sheet(isPresented: $showNewSessionSheet) {
+                    NewSessionSheet(
+                        onCreate: { agentType, cwd, groupId, name in
+                            sessionManager.createSession(agentType: agentType, workingDirectory: cwd, groupId: groupId, name: name)
+                        },
+                        groups: sessionManager.groups,
+                        activeProjectId: sessionManager.activeProject?.id
+                    )
+                }
+                .sheet(item: $themeManager.pendingShareImport) { theme in
+                    ThemeImportSheet(
+                        theme: theme,
+                        onImport: {
+                            if let imported = themeManager.confirmShareImport() {
+                                themeManager.setActiveTheme(imported)
+                            }
+                        },
+                        onCancel: { themeManager.cancelShareImport() }
+                    )
+                }
+        }
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 1200, height: 800)
+
+        Settings {
+            SettingsView(sessionManager: sessionManager)
+                .environmentObject(themeManager)
+        }
+    }
+}

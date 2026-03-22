@@ -1,0 +1,224 @@
+import SwiftUI
+import SwiftTerm
+import AppKit
+
+@MainActor
+final class TerminalController: ObservableObject {
+    private weak var terminalView: LocalProcessTerminalView?
+    private var savedCaretColor: NSColor?
+
+    func setTerminalView(_ view: LocalProcessTerminalView) {
+        self.terminalView = view
+    }
+
+    func send(_ text: String) {
+        guard let tv = terminalView else {
+            NSLog("[DECK] send failed — terminalView is nil")
+            return
+        }
+        tv.send(txt: text)
+    }
+
+    func focusTerminal() {
+        terminalView?.window?.makeFirstResponder(terminalView)
+    }
+
+    func unfocusTerminal() {
+        if let window = terminalView?.window, window.firstResponder === terminalView {
+            window.makeFirstResponder(nil)
+        }
+    }
+
+    /// The most recent terminal title set by the shell/agent via OSC escape sequence.
+    /// Claude Code uses this to broadcast status like "Thinking...", "Reading file.swift", etc.
+    var lastTerminalTitle: String = ""
+
+    /// Read the terminal title + last visible lines for status parsing.
+    /// Uses both the OSC title (most reliable for Claude Code) and buffer text as fallback.
+    func readRecentOutput() -> String {
+        guard let tv = terminalView else { return "" }
+        let terminal = tv.getTerminal()
+
+        // Primary: OSC title (Claude Code updates this with status)
+        var combined = lastTerminalTitle
+
+        // Fallback: read visible buffer lines
+        let rows = terminal.rows
+        let cols = terminal.cols
+        let startRow = max(0, rows - 8)
+        for row in startRow..<rows {
+            var line = ""
+            for col in 0..<cols {
+                let pos = Position(col: col, row: row)
+                let ch = terminal.buffer.getChar(at: pos)
+                let char = ch.getCharacter()
+                line.append(char)
+            }
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                combined += "\n" + trimmed
+            }
+        }
+
+        return combined
+    }
+
+    /// Read the full visible buffer for URL detection (scans all visible rows, not just last 8).
+    func readFullVisibleBuffer() -> String {
+        guard let tv = terminalView else { return "" }
+        let terminal = tv.getTerminal()
+
+        let rows = terminal.rows
+        let cols = terminal.cols
+        var lines: [String] = []
+
+        for row in 0..<rows {
+            var line = ""
+            for col in 0..<cols {
+                let pos = Position(col: col, row: row)
+                let ch = terminal.buffer.getChar(at: pos)
+                let char = ch.getCharacter()
+                line.append(char)
+            }
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                lines.append(trimmed)
+            }
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+    /// Hide the terminal cursor (chat mode) — makes it clear you're typing in the chat box
+    func hideCursor() {
+        guard let tv = terminalView else { return }
+        if savedCaretColor == nil {
+            savedCaretColor = tv.caretColor
+        }
+        tv.caretColor = .clear
+        // Also hide the CaretView subview directly
+        for subview in tv.subviews {
+            if type(of: subview).description().contains("Caret") {
+                subview.isHidden = true
+            }
+        }
+    }
+
+    /// Show the terminal cursor (raw mode)
+    func showCursor(themeColor: NSColor) {
+        guard let tv = terminalView else { return }
+        tv.caretColor = savedCaretColor ?? themeColor
+        savedCaretColor = nil
+        // Show the CaretView subview
+        for subview in tv.subviews {
+            if type(of: subview).description().contains("Caret") {
+                subview.isHidden = false
+            }
+        }
+    }
+}
+
+struct TerminalBridge: NSViewRepresentable {
+    let sessionId: UUID
+    let agentType: AgentType
+    let workingDirectory: String
+    let theme: Theme
+    let controller: TerminalController
+    let isChatMode: Bool
+
+    @Binding var terminalTitle: String
+    @Binding var agentStatus: AgentStatus
+    @Binding var isRunning: Bool
+    @Binding var exitCode: Int?
+
+    class Coordinator: NSObject, LocalProcessTerminalViewDelegate {
+        var parent: TerminalBridge
+        var hasStarted = false
+        init(_ parent: TerminalBridge) { self.parent = parent }
+        func sizeChanged(source: LocalProcessTerminalView, newCols: Int, newRows: Int) {}
+        func setTerminalTitle(source: LocalProcessTerminalView, title: String) {
+            DispatchQueue.main.async {
+                self.parent.terminalTitle = title
+                // Store on controller for status polling to read
+                self.parent.controller.lastTerminalTitle = title
+            }
+        }
+        func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {}
+        func processTerminated(source: TerminalView, exitCode: Int32?) {
+            DispatchQueue.main.async {
+                self.parent.isRunning = false
+                self.parent.exitCode = exitCode.map { Int($0) }
+                self.parent.agentStatus = .idle
+            }
+        }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeNSView(context: Context) -> LocalProcessTerminalView {
+        let tv = LocalProcessTerminalView(frame: .zero)
+        tv.processDelegate = context.coordinator
+        applyTheme(to: tv)
+        tv.font = NSFont.monospacedSystemFont(ofSize: 14, weight: .regular)
+        controller.setTerminalView(tv)
+        startProcess(tv: tv, context: context)
+
+        // Apply initial cursor state
+        if isChatMode {
+            controller.hideCursor()
+        }
+
+        return tv
+    }
+
+    func updateNSView(_ tv: LocalProcessTerminalView, context: Context) {
+        applyTheme(to: tv)
+        context.coordinator.parent = self
+        controller.setTerminalView(tv)
+
+        // Update cursor visibility based on chat/raw mode
+        if isChatMode {
+            controller.hideCursor()
+        } else {
+            controller.showCursor(themeColor: theme.terminal.cursor.nsColor)
+        }
+    }
+
+    private func startProcess(tv: LocalProcessTerminalView, context: Context) {
+        guard !context.coordinator.hasStarted else { return }
+        context.coordinator.hasStarted = true
+        let cmd = agentType.command
+        let args = agentType.defaultArguments
+
+        // Inherit process env, override BROWSER, and prepend ~/.deck/bin to PATH
+        // so Deck's `open` wrapper intercepts URL opens from agents
+        var envDict = ProcessInfo.processInfo.environment
+        envDict["BROWSER"] = SessionManager.browserScriptPath
+        let existingPath = envDict["PATH"] ?? "/usr/bin:/bin"
+        envDict["PATH"] = SessionManager.deckBinDir + ":" + existingPath
+        let env = envDict.map { "\($0.key)=\($0.value)" }
+
+        tv.startProcess(executable: cmd, args: args, environment: env,
+                        execName: URL(fileURLWithPath: cmd).lastPathComponent)
+        DispatchQueue.main.async { self.isRunning = true; self.agentStatus = .idle }
+    }
+
+    private func applyTheme(to tv: LocalProcessTerminalView) {
+        let tc = theme.terminal
+        tv.nativeBackgroundColor = tc.background.nsColor
+        tv.nativeForegroundColor = tc.foreground.nsColor
+        // Don't override caretColor here if we're managing it for chat/raw mode
+        tv.selectedTextBackgroundColor = tc.selection.nsColor
+        let a = tc.ansi
+        tv.installColors([
+            stc(a.black), stc(a.red), stc(a.green), stc(a.yellow),
+            stc(a.blue), stc(a.magenta), stc(a.cyan), stc(a.white),
+            stc(a.brightBlack), stc(a.brightRed), stc(a.brightGreen), stc(a.brightYellow),
+            stc(a.brightBlue), stc(a.brightMagenta), stc(a.brightCyan), stc(a.brightWhite),
+        ])
+    }
+
+    private func stc(_ c: ThemeColor) -> SwiftTerm.Color {
+        SwiftTerm.Color(red: UInt16(c.red * 65535), green: UInt16(c.green * 65535), blue: UInt16(c.blue * 65535))
+    }
+}
