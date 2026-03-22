@@ -383,11 +383,16 @@ final class SessionManager: ObservableObject {
         }
 
         // Reset all sessions — processes died with the old app instance.
+        // Set claudeContinue so Claude/Amp resume their last conversation.
         // Clear exit codes so they restart fresh when the view creates TerminalBridge.
         for i in sessions.indices {
             sessions[i].isRunning = false
             sessions[i].agentStatus = .idle
             sessions[i].exitCode = nil
+            // Mark for continuation on restart (Claude --continue, Amp --continue)
+            if sessions[i].agentType == .claude || sessions[i].agentType == .amp {
+                sessions[i].claudeContinue = true
+            }
         }
 
         migrateToProjectFirst()

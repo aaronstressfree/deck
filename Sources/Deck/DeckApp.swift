@@ -9,6 +9,25 @@ class DeckAppDelegate: NSObject, NSApplicationDelegate {
     var newSessionSheetHandler: (() -> Void)?
     private var menuTimer: Timer?
 
+    func applicationWillTerminate(_ notification: Notification) {
+        // Save terminal scrollback for each session so it can be restored on relaunch
+        guard let sm = sessionManager else { return }
+        let scrollbackDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("Deck/Scrollback", isDirectory: true)
+        try? FileManager.default.createDirectory(at: scrollbackDir, withIntermediateDirectories: true)
+
+        for i in sm.sessions.indices {
+            let session = sm.sessions[i]
+            let path = scrollbackDir.appendingPathComponent("\(session.id.uuidString).txt").path
+            if let controller = sm.terminalControllers[session.id] {
+                controller.saveScrollback(to: path)
+                sm.sessions[i].scrollbackPath = path
+            }
+        }
+        // Save state one final time with scrollback paths
+        sm.saveStatePublic()
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSLog("[DECK] App launched, starting menu install timer")
         try? "launch: \(Date())\n".write(toFile: "/tmp/deck-debug.log", atomically: true, encoding: .utf8)

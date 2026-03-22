@@ -33,6 +33,13 @@ final class TerminalController: ObservableObject {
     /// Claude Code uses this to broadcast status like "Thinking...", "Reading file.swift", etc.
     var lastTerminalTitle: String = ""
 
+    /// Save the full visible terminal buffer to a file for session persistence.
+    func saveScrollback(to path: String) {
+        let content = readFullVisibleBuffer()
+        guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        try? content.write(toFile: path, atomically: true, encoding: .utf8)
+    }
+
     /// Read the terminal title + last visible lines for status parsing.
     /// Uses both the OSC title (most reliable for Claude Code) and buffer text as fallback.
     func readRecentOutput() -> String {
@@ -128,6 +135,8 @@ struct TerminalBridge: NSViewRepresentable {
     let theme: Theme
     let controller: TerminalController
     let isChatMode: Bool
+    var continueSession: Bool = false
+    var scrollbackPath: String? = nil
 
     @Binding var terminalTitle: String
     @Binding var agentStatus: AgentStatus
@@ -191,7 +200,7 @@ struct TerminalBridge: NSViewRepresentable {
         guard !context.coordinator.hasStarted else { return }
         context.coordinator.hasStarted = true
         let cmd = agentType.command
-        let args = agentType.defaultArguments
+        let args = agentType.arguments(continueSession: continueSession)
 
         // Inherit process env, override BROWSER, and prepend ~/.deck/bin to PATH
         // so Deck's `open` wrapper intercepts URL opens from agents
@@ -204,6 +213,18 @@ struct TerminalBridge: NSViewRepresentable {
         tv.startProcess(executable: cmd, args: args, environment: env,
                         execName: URL(fileURLWithPath: cmd).lastPathComponent)
         DispatchQueue.main.async { self.isRunning = true; self.agentStatus = .idle }
+
+        // Restore saved scrollback after process starts
+        if let scrollbackPath = scrollbackPath,
+           let saved = try? String(contentsOfFile: scrollbackPath, encoding: .utf8),
+           !saved.isEmpty {
+            // Feed as dimmed text so it's visually distinct from new output
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                let dimmed = "\u{1B}[2m" + saved + "\u{1B}[0m\r\n\u{1B}[2m--- session restored ---\u{1B}[0m\r\n"
+                tv.feed(text: dimmed)
+            }
+            try? FileManager.default.removeItem(atPath: scrollbackPath)
+        }
     }
 
     private func applyTheme(to tv: LocalProcessTerminalView) {
