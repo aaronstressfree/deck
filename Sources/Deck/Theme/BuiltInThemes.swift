@@ -96,23 +96,23 @@ extension Theme {
             selection: ThemeColor(red: 0.231, green: 0.510, blue: 0.965, opacity: 0.25),
             ansi: AnsiPalette(
                 black: ThemeColor(hex: "2A2A2F"),
-                red: ThemeColor(hex: "E87070"),
-                green: ThemeColor(hex: "45C878"),
-                yellow: ThemeColor(hex: "E8BC28"),
-                blue: ThemeColor(hex: "5B9BE8"),
-                magenta: ThemeColor(hex: "B07CE8"),
-                cyan: ThemeColor(hex: "2CC8D8"),
+                red: ThemeColor(hex: "F07070"),
+                green: ThemeColor(hex: "50D080"),
+                yellow: ThemeColor(hex: "E8C440"),
+                blue: ThemeColor(hex: "60A0F0"),
+                magenta: ThemeColor(hex: "B880F0"),
+                cyan: ThemeColor(hex: "30D0E0"),
                 white: ThemeColor(hex: "C8C8CD"),
                 brightBlack: ThemeColor(hex: "52525B"),
-                brightRed: ThemeColor(hex: "E89898"),
-                brightGreen: ThemeColor(hex: "78D8A0"),
-                brightYellow: ThemeColor(hex: "E8D080"),
-                brightBlue: ThemeColor(hex: "88B8E8"),
-                brightMagenta: ThemeColor(hex: "C8A8E8"),
-                brightCyan: ThemeColor(hex: "60D0E0"),
+                brightRed: ThemeColor(hex: "F0A0A0"),
+                brightGreen: ThemeColor(hex: "80E0A8"),
+                brightYellow: ThemeColor(hex: "F0D888"),
+                brightBlue: ThemeColor(hex: "90C0F0"),
+                brightMagenta: ThemeColor(hex: "D0B0F0"),
+                brightCyan: ThemeColor(hex: "68D8E8"),
                 brightWhite: ThemeColor(hex: "E4E4E7")
             ),
-            fontFamily: "JetBrainsMono-Regular"
+            fontFamily: "JetBrainsMono-Light"
         )
     )
 

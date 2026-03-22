@@ -215,6 +215,31 @@ struct ThemeEditorView: View {
                         ("Cursor", $editingTheme.forceUnwrap.terminal.cursor),
                     ])
 
+                    // Font family picker
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("TERMINAL FONT")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .tracking(0.5)
+                        Picker("Font", selection: Binding(
+                            get: { editingTheme?.terminal.fontFamily ?? "auto" },
+                            set: { editingTheme?.terminal.fontFamily = $0 == "auto" ? nil : $0 }
+                        )) {
+                            Text("Auto (best available)").tag("auto")
+                            Divider()
+                            Text("JetBrains Mono").tag("JetBrainsMono-Regular")
+                            Text("Fira Code").tag("FiraCode-Regular")
+                            Text("Cascadia Code").tag("CascadiaCode-Regular")
+                            Text("IBM Plex Mono").tag("IBMPlexMono")
+                            Text("Source Code Pro").tag("SourceCodePro-Regular")
+                            Text("Menlo").tag("Menlo")
+                            Text("SF Mono").tag("SFMono-Regular")
+                        }
+                        .labelsHidden()
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+
                     colorSection("ANSI Colors", colors: [
                         ("Black", $editingTheme.forceUnwrap.terminal.ansi.black),
                         ("Red", $editingTheme.forceUnwrap.terminal.ansi.red),

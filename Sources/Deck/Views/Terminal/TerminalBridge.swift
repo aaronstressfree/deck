@@ -138,7 +138,7 @@ struct TerminalBridge: NSViewRepresentable {
     static func resolveFont(themeFont: String? = nil) -> NSFont {
         let userFamily = UserDefaults.standard.string(forKey: "terminalFontFamily") ?? "auto"
         let rawSize = UserDefaults.standard.double(forKey: "terminalFontSize")
-        let size = CGFloat(rawSize > 0 ? min(max(rawSize, 10), 24) : 14)
+        let size = CGFloat(rawSize > 0 ? min(max(rawSize, 10), 24) : 12)
 
         // 1. User override (explicit selection in Settings)
         if userFamily != "auto", let font = NSFont(name: userFamily, size: size) {
@@ -150,12 +150,16 @@ struct TerminalBridge: NSViewRepresentable {
             return font
         }
 
-        // 3. Auto: try bundled fonts in preference order
-        return NSFont(name: "JetBrainsMono-Regular", size: size)
+        // 3. Auto: try bundled fonts — prefer Light weight for thinner, refined look
+        NSLog("[DECK-FONT] Resolving auto font at \(size)pt. JBMono-Light available: \(NSFont(name: "JetBrainsMono-Light", size: 12) != nil)")
+        let font = NSFont(name: "JetBrainsMono-Light", size: size)
+            ?? NSFont(name: "FiraCode-Light", size: size)
+            ?? NSFont(name: "JetBrainsMono-Regular", size: size)
             ?? NSFont(name: "FiraCode-Regular", size: size)
-            ?? NSFont(name: "CascadiaCode-Regular", size: size)
             ?? NSFont(name: "Menlo", size: size)
-            ?? NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
+            ?? NSFont.monospacedSystemFont(ofSize: size, weight: .light)
+        try? "Font: \(font.fontName) at \(font.pointSize)pt\n".write(toFile: "/tmp/deck-font-debug.txt", atomically: true, encoding: .utf8)
+        return font
     }
     let controller: TerminalController
     let isChatMode: Bool

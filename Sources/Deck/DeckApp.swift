@@ -29,7 +29,9 @@ class DeckAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSLog("[DECK] App launched, starting menu install timer")
+        // Register bundled fonts before any terminal views are created
+        registerBundledFonts()
+        NSLog("[DECK] App launched, fonts registered, starting menu install timer")
         try? "launch: \(Date())\n".write(toFile: "/tmp/deck-debug.log", atomically: true, encoding: .utf8)
         // Poll until state objects are available (set by DeckApp body evaluation)
         menuTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] timer in
@@ -59,11 +61,33 @@ class DeckAppDelegate: NSObject, NSApplicationDelegate {
 
 /// Register all bundled fonts so they're available even if not installed system-wide
 private func registerBundledFonts() {
-    guard let fontsURL = Bundle.main.url(forResource: "Fonts", withExtension: nil) else { return }
-    guard let fontFiles = try? FileManager.default.contentsOfDirectory(at: fontsURL, includingPropertiesForKeys: nil) else { return }
-    for file in fontFiles where file.pathExtension == "ttf" || file.pathExtension == "otf" {
-        CTFontManagerRegisterFontsForURL(file as CFURL, .process, nil)
+    // SPM executable targets put resources in Deck_Deck.bundle inside the app's Resources
+    let candidates = [
+        Bundle.main.url(forResource: "Fonts", withExtension: nil),
+        Bundle.main.resourceURL?.appendingPathComponent("Deck_Deck.bundle/Fonts"),
+        Bundle.main.bundleURL.appendingPathComponent("Contents/Resources/Deck_Deck.bundle/Fonts"),
+    ]
+
+    guard let fontsURL = candidates.compactMap({ $0 }).first(where: {
+        FileManager.default.fileExists(atPath: $0.path)
+    }) else {
+        try? "No Fonts directory found. Searched: \(candidates.compactMap { $0?.path })\n"
+            .write(toFile: NSHomeDirectory() + "/.deck-font-debug.txt", atomically: true, encoding: .utf8)
+        return
     }
+
+    guard let fontFiles = try? FileManager.default.contentsOfDirectory(at: fontsURL, includingPropertiesForKeys: nil) else { return }
+
+    var registered = 0
+    for file in fontFiles where file.pathExtension == "ttf" || file.pathExtension == "otf" {
+        if CTFontManagerRegisterFontsForURL(file as CFURL, .process, nil) {
+            registered += 1
+        }
+    }
+
+    let jbLight = NSFont(name: "JetBrainsMono-Light", size: 12)
+    try? "OK: \(registered)/\(fontFiles.count) fonts from \(fontsURL.path)\nJBMono-Light: \(jbLight?.fontName ?? "NOT FOUND")\n"
+        .write(toFile: NSHomeDirectory() + "/.deck-font-debug.txt", atomically: true, encoding: .utf8)
 }
 
 @main
