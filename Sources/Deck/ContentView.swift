@@ -134,13 +134,8 @@ struct ContentView: View {
         let isActive = session.id == sessionManager.activeSessionId
         return Button(action: { sessionManager.switchToSession(id: session.id) }) {
             ZStack {
-                Image(systemName: session.agentType.iconName)
-                    .font(.system(size: 14))
-                    .foregroundStyle(
-                        isActive
-                            ? theme.accent.primary.swiftUIColor
-                            : theme.text.tertiary.swiftUIColor
-                    )
+                agentIconView(session.agentType, isActive: isActive)
+                    .frame(width: 16, height: 16)
 
                 if session.isRunning && session.agentStatus.isActive {
                     Circle()
@@ -158,6 +153,33 @@ struct ContentView: View {
         }
         .buttonStyle(HoverButtonStyle(hoverColor: theme.surfaces.hover.swiftUIColor))
         .help(session.displayName)
+    }
+
+    @ViewBuilder
+    private func agentIconView(_ agentType: AgentType, isActive: Bool) -> some View {
+        let color: Color = isActive ? theme.accent.primary.swiftUIColor : theme.text.tertiary.swiftUIColor
+        switch agentType {
+        case .claude:
+            if let url = Bundle.module.url(forResource: "claude-icon", withExtension: "png"),
+               let img = NSImage(contentsOf: url) {
+                Image(nsImage: img)
+                    .resizable()
+                    .renderingMode(.template)
+                    .foregroundStyle(Color(red: 0.90, green: 0.55, blue: 0.25))
+            } else {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 14))
+                    .foregroundStyle(color)
+            }
+        case .amp:
+            Image(systemName: "bolt.fill")
+                .font(.system(size: 14))
+                .foregroundStyle(Color(red: 0.55, green: 0.82, blue: 0.78))
+        case .shell:
+            Image(systemName: "terminal.fill")
+                .font(.system(size: 13))
+                .foregroundStyle(color)
+        }
     }
 
     private func sessionBinding(for id: UUID) -> Binding<Session>? {

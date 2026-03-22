@@ -68,27 +68,15 @@ private func registerBundledFonts() {
         Bundle.main.bundleURL.appendingPathComponent("Contents/Resources/Deck_Deck.bundle/Fonts"),
     ]
 
-    let searched = candidates.compactMap { $0?.path }
     guard let fontsURL = candidates.compactMap({ $0 }).first(where: {
         FileManager.default.fileExists(atPath: $0.path)
-    }) else {
-        try? "No Fonts directory found.\nSearched:\n\(searched.joined(separator: "\n"))\nBundle.main.resourceURL: \(Bundle.main.resourceURL?.path ?? "nil")\nBundle.main.bundlePath: \(Bundle.main.bundlePath)\n"
-            .write(toFile: NSHomeDirectory() + "/.deck-font-debug.txt", atomically: true, encoding: .utf8)
-        return
-    }
+    }) else { return }
 
     guard let fontFiles = try? FileManager.default.contentsOfDirectory(at: fontsURL, includingPropertiesForKeys: nil) else { return }
 
-    var registered = 0
     for file in fontFiles where file.pathExtension == "ttf" || file.pathExtension == "otf" {
-        if CTFontManagerRegisterFontsForURL(file as CFURL, .process, nil) {
-            registered += 1
-        }
+        CTFontManagerRegisterFontsForURL(file as CFURL, .process, nil)
     }
-
-    let jbLight = NSFont(name: "JetBrainsMono-Light", size: 12)
-    try? "OK: \(registered)/\(fontFiles.count) fonts from \(fontsURL.path)\nJBMono-Light: \(jbLight?.fontName ?? "NOT FOUND")\n"
-        .write(toFile: NSHomeDirectory() + "/.deck-font-debug.txt", atomically: true, encoding: .utf8)
 }
 
 @main

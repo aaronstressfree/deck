@@ -151,7 +151,6 @@ struct TerminalBridge: NSViewRepresentable {
         }
 
         // 3. Auto: try bundled fonts — prefer Light weight for thinner, refined look
-        NSLog("[DECK-FONT] Resolving auto font at \(size)pt. JBMono-Light available: \(NSFont(name: "JetBrainsMono-Light", size: 12) != nil)")
         let font = NSFont(name: "JetBrainsMono-Light", size: size)
             ?? NSFont(name: "FiraCode-Light", size: size)
             ?? NSFont(name: "JetBrainsMono-Regular", size: size)
