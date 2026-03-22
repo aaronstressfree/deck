@@ -244,7 +244,8 @@ struct TerminalBridge: NSViewRepresentable {
         let env = envDict.map { "\($0.key)=\($0.value)" }
 
         tv.startProcess(executable: cmd, args: args, environment: env,
-                        execName: URL(fileURLWithPath: cmd).lastPathComponent)
+                        execName: URL(fileURLWithPath: cmd).lastPathComponent,
+                        currentDirectory: workingDirectory)
         DispatchQueue.main.async { self.isRunning = true; self.agentStatus = .idle }
 
         // Clean up saved scrollback file (scrollback restore via feed() produces
