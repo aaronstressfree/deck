@@ -85,8 +85,8 @@ struct ContentView: View {
                     .foregroundStyle(theme.text.quaternary.swiftUIColor)
                     .frame(width: 44, height: 28)
             }
-            .buttonStyle(.plain)
-            .help("Show sidebar (⌘\\)")
+            .buttonStyle(HoverButtonStyle(hoverColor: theme.surfaces.hover.swiftUIColor))
+            .help("Show sidebar (⌘⇧L)")
 
             Divider().background(theme.borders.subtle.swiftUIColor)
 

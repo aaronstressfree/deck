@@ -11,6 +11,7 @@ struct SidebarFooter: View {
     let onNewShell: () -> Void
     let onNewProject: ((String, String?) -> Void)?
     let onShowNewProject: () -> Void
+    var onCollapseSidebar: (() -> Void)? = nil
 
     var body: some View {
         HStack {
@@ -66,6 +67,18 @@ struct SidebarFooter: View {
             }
 
             Spacer()
+
+            // Collapse sidebar
+            if let onCollapseSidebar {
+                Button(action: onCollapseSidebar) {
+                    Image(systemName: "sidebar.left")
+                        .font(.system(size: 14))
+                        .foregroundStyle(theme.text.quaternary.swiftUIColor)
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(HoverButtonStyle(hoverColor: theme.surfaces.hover.swiftUIColor))
+                .help("Collapse sidebar (⌘⇧L)")
+            }
 
             // Settings gear
             SettingsLink {

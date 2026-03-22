@@ -71,7 +71,12 @@ struct SidebarView: View {
                 onNewProject: { name, dir in
                     sessionManager.createGroup(name: name, workingDirectory: dir)
                 },
-                onShowNewProject: { showNewProject = true }
+                onShowNewProject: { showNewProject = true },
+                onCollapseSidebar: {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        sessionManager.sidebarCollapsed = true
+                    }
+                }
             )
         }
         .background(theme.surfaces.inset.swiftUIColor)
