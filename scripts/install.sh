@@ -25,29 +25,38 @@ else
     echo "Installing..."
 fi
 
-# Download latest release
+# Download latest release via GitHub API (works without gh CLI)
 echo "Downloading latest build..."
-if ! gh release download latest --repo "$REPO" --pattern "Deck*.zip" --dir "$TMP_DIR" 2>/dev/null; then
-    # Try the versioned release
-    if ! gh release download --repo "$REPO" --pattern "Deck*.zip" --dir "$TMP_DIR" 2>/dev/null; then
-    # Fallback: try curl with GitHub API
-    DOWNLOAD_URL=$(curl -sL "https://api.github.com/repos/$REPO/releases/latest" | grep "browser_download_url.*Deck.*zip" | head -1 | cut -d '"' -f 4)
-    if [ -z "$DOWNLOAD_URL" ]; then
-        echo "Error: No release found. Push to main first to trigger a build."
-        exit 1
+RELEASE_JSON=$(curl -sL "https://api.github.com/repos/$REPO/releases/latest")
+DOWNLOAD_URL=$(echo "$RELEASE_JSON" | grep "browser_download_url" | grep -i "deck.*zip" | head -1 | cut -d '"' -f 4)
+
+if [ -z "$DOWNLOAD_URL" ]; then
+    # Try gh CLI as fallback
+    if command -v gh &>/dev/null; then
+        gh release download --repo "$REPO" --pattern "Deck*.zip" --dir "$TMP_DIR" 2>/dev/null
     fi
+else
+    echo "Downloading from $DOWNLOAD_URL"
     curl -sL "$DOWNLOAD_URL" -o "$TMP_DIR/Deck.zip"
-    fi
 fi
 
-# Unzip — find whatever zip was downloaded
-echo "Extracting..."
-ZIPFILE=$(find "$TMP_DIR" -name "Deck*.zip" | head -1)
+# Find the zip
+ZIPFILE=$(find "$TMP_DIR" -name "*.zip" -maxdepth 1 | head -1)
 if [ -z "$ZIPFILE" ]; then
-    echo "Error: No zip file found."
+    echo "Error: Could not download Deck. Check https://github.com/$REPO/releases"
     exit 1
 fi
+
+# Unzip
+echo "Extracting..."
 unzip -qo "$ZIPFILE" -d "$TMP_DIR"
+
+# Find the .app (might be nested)
+APP_SRC=$(find "$TMP_DIR" -name "Deck.app" -maxdepth 2 | head -1)
+if [ -z "$APP_SRC" ]; then
+    echo "Error: Deck.app not found in archive."
+    exit 1
+fi
 
 # Quit running instance
 if pgrep -x Deck > /dev/null 2>&1; then
@@ -61,7 +70,7 @@ fi
 # Install
 echo "Installing to $INSTALL_PATH..."
 rm -rf "$INSTALL_PATH"
-cp -R "$TMP_DIR/Deck.app" "$INSTALL_PATH"
+cp -R "$APP_SRC" "$INSTALL_PATH"
 
 # Clear quarantine flag
 xattr -cr "$INSTALL_PATH" 2>/dev/null || true
