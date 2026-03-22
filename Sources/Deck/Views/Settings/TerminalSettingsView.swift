@@ -2,7 +2,7 @@ import SwiftUI
 
 struct TerminalSettingsView: View {
     @AppStorage("terminalFontFamily") private var fontFamily: String = "auto"
-    @AppStorage("terminalFontSize") private var fontSize: Double = 12
+    @AppStorage("terminalFontSize") private var fontSize: Double = 13
     @AppStorage("terminalLineHeight") private var lineHeight: Double = 1.2
     @AppStorage("terminalCursorStyle") private var cursorStyle = "block"
     @AppStorage("terminalCursorBlink") private var cursorBlink = true

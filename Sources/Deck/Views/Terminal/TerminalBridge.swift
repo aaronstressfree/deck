@@ -138,7 +138,7 @@ struct TerminalBridge: NSViewRepresentable {
     static func resolveFont(themeFont: String? = nil) -> NSFont {
         let userFamily = UserDefaults.standard.string(forKey: "terminalFontFamily") ?? "auto"
         let rawSize = UserDefaults.standard.double(forKey: "terminalFontSize")
-        let size = CGFloat(rawSize > 0 ? min(max(rawSize, 10), 24) : 12)
+        let size = CGFloat(rawSize > 0 ? min(max(rawSize, 10), 24) : 13)
 
         // 1. User override (explicit selection in Settings)
         if userFamily != "auto", let font = NSFont(name: userFamily, size: size) {

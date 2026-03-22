@@ -6,7 +6,11 @@
       "Edit",
       "Bash",
       "Glob",
-      "Grep"
+      "Grep",
+      "Agent",
+      "WebFetch",
+      "WebSearch",
+      "NotebookEdit"
     ]
   }
 }

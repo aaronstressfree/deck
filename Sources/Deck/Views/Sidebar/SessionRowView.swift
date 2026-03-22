@@ -39,7 +39,7 @@ struct SessionRowView: View {
         HStack(spacing: 7) {
             // Agent icon — real brand icon for Claude, SF Symbol for others
             agentIcon
-                .frame(width: 16, height: 16)
+                .frame(width: 20, height: 20)
                 .opacity(session.agentStatus.isActive ? 0.5 : 1.0)
                 .animation(
                     session.agentStatus.isActive
@@ -194,19 +194,19 @@ struct SessionRowView: View {
                     .resizable()
                     .renderingMode(.template)
                     .foregroundStyle(agentBrandColor)
-                    .frame(width: 14, height: 14)
+                    .frame(width: 18, height: 18)
             } else {
                 Image(systemName: "sparkles")
-                    .font(.system(size: 12))
+                    .font(.system(size: 15))
                     .foregroundStyle(agentBrandColor)
             }
         case .amp:
             Image(systemName: "bolt.fill")
-                .font(.system(size: 12))
+                .font(.system(size: 15))
                 .foregroundStyle(agentBrandColor)
         case .shell:
             Image(systemName: "terminal.fill")
-                .font(.system(size: 11))
+                .font(.system(size: 14))
                 .foregroundStyle(agentBrandColor)
         }
     }
