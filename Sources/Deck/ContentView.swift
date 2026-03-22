@@ -157,13 +157,7 @@ struct ContentView: View {
             )
         }
         .buttonStyle(HoverButtonStyle(hoverColor: theme.surfaces.hover.swiftUIColor))
-        .help({
-            let projectName = sessionManager.groups.first(where: { $0.id == session.groupId })?.name
-            if let projectName {
-                return "\(projectName) — \(session.displayName)"
-            }
-            return session.displayName
-        }())
+        .help(session.displayName)
     }
 
     private func sessionBinding(for id: UUID) -> Binding<Session>? {

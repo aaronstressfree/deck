@@ -227,7 +227,7 @@ extension Theme {
                 brightCyan: ThemeColor(hex: "06B6D4"),
                 brightWhite: ThemeColor(hex: "F4F4F5")
             ),
-            fontFamily: "IBMPlexMono"
+            fontFamily: "IBMPlexMono-Light"
         )
     )
 
