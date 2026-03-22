@@ -3,10 +3,12 @@ import SwiftUI
 /// Minimal status bar — shows only what's relevant, no visual noise.
 struct StatusBarView: View {
     @Environment(\.deckTheme) private var theme
+    @EnvironmentObject var updateChecker: UpdateChecker
     let session: Session?
 
     @State private var gitBranch: String?
     @State private var isDirty: Bool = false
+    @State private var showUpdateCopied = false
 
     var body: some View {
         HStack(spacing: 0) {
@@ -32,6 +34,28 @@ struct StatusBarView: View {
 
                 Spacer()
 
+                // Update available indicator
+                if updateChecker.updateAvailable {
+                    Button(action: {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(UpdateChecker.installCommand, forType: .string)
+                        showUpdateCopied = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { showUpdateCopied = false }
+                    }) {
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(theme.accent.primary.swiftUIColor)
+                                .frame(width: 6, height: 6)
+                            Text(showUpdateCopied ? "Copied!" : "Update available")
+                                .font(.system(size: 11))
+                                .foregroundStyle(theme.accent.primary.swiftUIColor)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .help("Click to copy install command")
+                    .padding(.trailing, 8)
+                }
+
                 // Agent badge — right side
                 Text(session.agentType.displayName)
                     .font(.system(size: 12))
@@ -48,7 +72,10 @@ struct StatusBarView: View {
             alignment: .top
         )
         .onChange(of: session?.workingDirectory) { _, cwd in updateGitInfo(cwd: cwd) }
-        .onAppear { updateGitInfo(cwd: session?.workingDirectory) }
+        .onAppear {
+            updateGitInfo(cwd: session?.workingDirectory)
+            updateChecker.checkIfNeeded()
+        }
     }
 
     private var separator: some View {

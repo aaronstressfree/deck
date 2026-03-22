@@ -37,10 +37,11 @@ struct SessionRowView: View {
 
     var body: some View {
         HStack(spacing: 7) {
-            // Status dot — pulses when agent is actively working
-            Circle()
-                .fill(statusColor)
-                .frame(width: 6, height: 6)
+            // Agent icon with status color
+            Image(systemName: session.agentType.iconName)
+                .font(.system(size: 12))
+                .foregroundStyle(statusColor)
+                .frame(width: 14)
                 .opacity(statusDotOpacity)
                 .animation(
                     session.agentStatus.isActive

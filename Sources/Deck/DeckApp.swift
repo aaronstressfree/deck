@@ -44,6 +44,7 @@ struct DeckApp: App {
     @StateObject private var themeManager = ThemeManager()
     @StateObject private var sessionManager = SessionManager()
     @StateObject private var designMode = DesignModeManager()
+    @StateObject private var updateChecker = UpdateChecker()
     @State private var showNewSessionSheet = false
     @State private var urlBarFocused = false
 
@@ -67,6 +68,7 @@ struct DeckApp: App {
                 .environmentObject(themeManager)
                 .environmentObject(designMode)
                 .environmentObject(sessionManager)
+                .environmentObject(updateChecker)
                 .onAppear { FullDiskAccess.requestIfNeeded() }
                 .onOpenURL { url in themeManager.handleShareURL(url) }
                 .sheet(isPresented: $showNewSessionSheet) {
