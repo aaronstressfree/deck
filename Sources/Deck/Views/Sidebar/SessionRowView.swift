@@ -71,18 +71,12 @@ struct SessionRowView: View {
                         .accessibilityIdentifier(AccessibilityID.sessionName)
                 }
 
-                // Line 2: Agent type · status
-                HStack(spacing: 0) {
-                    Text(session.agentType.displayName)
-                        .foregroundStyle(theme.text.quaternary.swiftUIColor)
-                    Text(" · ")
-                        .foregroundStyle(theme.text.quaternary.swiftUIColor)
-                    Text(statusSummary)
-                        .foregroundStyle(statusSummaryColor)
-                }
-                .font(.system(size: 11))
-                .lineLimit(1)
-                .accessibilityIdentifier(AccessibilityID.sessionStatusLabel)
+                // Line 2: Status only (agent icon handles type identification)
+                Text(statusSummary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(statusSummaryColor)
+                    .lineLimit(1)
+                    .accessibilityIdentifier(AccessibilityID.sessionStatusLabel)
             }
 
             Spacer(minLength: 4)

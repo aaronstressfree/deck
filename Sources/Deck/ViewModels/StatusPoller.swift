@@ -74,6 +74,23 @@ final class StatusPoller {
                 }
             }
 
+            // Auto-name from first user prompt — scan buffer once for unnamed sessions
+            if sm.sessions[i].name == nil && sm.sessions[i].autoName == "New session" {
+                let buffer = controller.readFullVisibleBuffer()
+                // Claude Code shows user prompts as "❯ prompt" or "> prompt"
+                if let promptMatch = buffer.range(of: #"[❯›>]\s+(.{3,60})"#, options: .regularExpression) {
+                    let prompt = String(buffer[promptMatch])
+                        .replacingOccurrences(of: #"^[❯›>]\s+"#, with: "", options: .regularExpression)
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !prompt.isEmpty && prompt.count >= 3 {
+                        // Truncate to first line, max 40 chars
+                        let firstLine = prompt.components(separatedBy: .newlines).first ?? prompt
+                        let truncated = firstLine.count > 40 ? String(firstLine.prefix(37)) + "..." : firstLine
+                        sm.sessions[i].autoName = truncated
+                    }
+                }
+            }
+
             // URL detection — expensive, only every 5th tick for active session
             if urlDetectionCounter == 0 && sessionId == sm.activeSessionId {
                 let fullBuffer = controller.readFullVisibleBuffer()

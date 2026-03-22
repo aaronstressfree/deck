@@ -35,11 +35,25 @@ struct ChatInputView: View {
         !inputText.isEmpty || !attachedFiles.isEmpty
     }
 
+    private var isActiveSession: Bool {
+        sessionManager.activeSessionId == sessionId
+    }
+
     var body: some View {
-        if isChatMode {
-            chatBar
-        } else {
-            rawBar
+        Group {
+            if isChatMode {
+                chatBar
+            } else {
+                rawBar
+            }
+        }
+        // When this session becomes active, grab focus so user can start typing
+        .onChange(of: sessionManager.activeSessionId) { _, newId in
+            if newId == sessionId && isChatMode {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    focusTrigger = UUID()
+                }
+            }
         }
     }
 
@@ -339,7 +353,6 @@ struct ChatTextField: NSViewRepresentable {
         }
 
         // Auto-grab focus in chat mode — but only if we don't already have it.
-        // This prevents unnecessary makeFirstResponder calls on every render.
         if let window = tv.window {
             let fr = window.firstResponder
             // For NSTextView, it IS the first responder directly (no field editor indirection)

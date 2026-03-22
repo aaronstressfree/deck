@@ -122,12 +122,19 @@ struct TerminalContainerView: View {
         )
         .onChange(of: terminalTitle) { _, newTitle in
             if session.name == nil && !newTitle.isEmpty {
-                // Strip spinner/sparkle characters that Claude Code puts in OSC titles
+                // Strip spinner/sparkle characters from OSC title
                 let cleaned = newTitle
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                     .replacingOccurrences(of: #"^[✳⠂⠐⠈⠑⠡⡀⢀⠠⠄⠁⠿\s]+"#, with: "", options: .regularExpression)
                     .trimmingCharacters(in: .whitespaces)
-                if !cleaned.isEmpty {
+
+                // Skip generic names — "Claude Code", "Amp", status messages
+                let generic: Set<String> = [
+                    "Claude Code", "claude", "Amp", "amp", "zsh", "bash",
+                    "Thinking", "Thinking...", "Reading", "Writing", "Running",
+                    "Assembling", "Planning", "Reasoning"
+                ]
+                if !cleaned.isEmpty && !generic.contains(cleaned) {
                     session.autoName = cleaned
                 }
             }

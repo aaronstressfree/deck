@@ -70,8 +70,14 @@ struct Session: Identifiable, Codable, Hashable {
         self.claudeModel = nil
         self.claudeContinue = false
 
-        // Generate initial auto-name (agent type shown on second line, so no prefix needed)
+        // Generate initial auto-name
         let dirName = URL(fileURLWithPath: workingDirectory).lastPathComponent
-        self.autoName = dirName
+        let home = FileManager.default.homeDirectoryForCurrentUser.lastPathComponent
+        // Use directory name if meaningful, otherwise "New session"
+        if dirName != home && !dirName.isEmpty {
+            self.autoName = dirName
+        } else {
+            self.autoName = "New session"
+        }
     }
 }
