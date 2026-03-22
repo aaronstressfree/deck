@@ -155,8 +155,9 @@ struct SessionRowView: View {
             Button("Close", role: .destructive) { showCloseConfirmation = true }
         }
         .alert("Close Session?", isPresented: $showCloseConfirmation) {
-            Button("Cancel", role: .cancel) {}
             Button("Close", role: .destructive) { onClose() }
+                .keyboardShortcut(.defaultAction)
+            Button("Cancel", role: .cancel) {}
         } message: {
             Text("Close \"\(session.displayName)\"? This will end the running process.")
         }

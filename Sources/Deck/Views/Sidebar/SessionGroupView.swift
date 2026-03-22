@@ -23,6 +23,7 @@ struct SessionGroupView: View {
     @State private var isHeaderHovered = false
     @State private var showNewPicker = false
     @State private var showSettings = false
+    @State private var showDeleteConfirmation = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
@@ -54,6 +55,13 @@ struct SessionGroupView: View {
             return true
         } isTargeted: { targeted in
             isDropTarget = targeted
+        }
+        .alert("Delete Project?", isPresented: $showDeleteConfirmation) {
+            Button("Delete", role: .destructive) { onDeleteGroup() }
+                .keyboardShortcut(.defaultAction)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Delete \"\(group.name)\"? Sessions will be ungrouped, not deleted.")
         }
         .sheet(isPresented: $showSettings) {
             ProjectSettingsSheet(
@@ -157,7 +165,7 @@ struct SessionGroupView: View {
 
             if !group.isGeneral {
                 Divider()
-                Button("Delete Project", role: .destructive) { onDeleteGroup() }
+                Button("Delete Project", role: .destructive) { showDeleteConfirmation = true }
             }
         }
     }
