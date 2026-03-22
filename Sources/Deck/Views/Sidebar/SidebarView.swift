@@ -16,7 +16,7 @@ struct SidebarView: View {
             // Project list — every session belongs to a project
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 2) {
-                    ForEach(sortedProjects) { group in
+                    ForEach(sessionManager.groups) { group in
                         let groupSessions = sessionManager.sessions.filter { $0.groupId == group.id }
                         SessionGroupView(
                             group: group,
