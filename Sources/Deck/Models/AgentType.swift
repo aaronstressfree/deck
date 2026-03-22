@@ -38,15 +38,14 @@ enum AgentType: String, Codable, Hashable, Sendable, CaseIterable {
     }
 
     /// Arguments to pass when spawning.
-    /// `continueSession` resumes the previous conversation (Claude --continue).
+    /// Always starts fresh — sessions launch in the correct working directory
+    /// and get project context via CLAUDE.md.
     func arguments(continueSession: Bool = false) -> [String] {
         switch self {
         case .claude:
-            let continueFlag = continueSession ? " --continue" : ""
-            return ["-l", "-i", "-c", "claude\(continueFlag) || { echo '\\n⚠ claude not found. Install: npm install -g @anthropic-ai/claude-code'; exec zsh -l; }"]
+            return ["-l", "-i", "-c", "claude || { echo '\\n⚠ claude not found. Install: npm install -g @anthropic-ai/claude-code'; exec zsh -l; }"]
         case .amp:
-            let resumeCmd = continueSession ? "amp threads continue --last" : "amp"
-            return ["-l", "-i", "-c", "\(resumeCmd) || { echo '\\n⚠ amp not found. Install: npm install -g @anthropic-ai/amp'; exec zsh -l; }"]
+            return ["-l", "-i", "-c", "amp || { echo '\\n⚠ amp not found. Install: npm install -g @anthropic-ai/amp'; exec zsh -l; }"]
         case .shell:
             return ["--login", "-i"]
         }
