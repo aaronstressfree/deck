@@ -67,7 +67,10 @@ struct CollapsedSessionButton<Icon: View>: View {
         let w = max(nameSize.width, statusSize.width) + pad * 2
         let h = nameSize.height + statusSize.height + 4 + pad * 2
 
-        let x = wf.minX + frame.maxX + 8
+        // frame is in SwiftUI global coords (origin top-left of window content)
+        // Convert to screen coords (origin bottom-left of screen)
+        let sidebarWidth: CGFloat = 44 // collapsed sidebar width
+        let x = wf.minX + sidebarWidth + 4
         let y = wf.maxY - frame.midY - h / 2
 
         let win = NSWindow(contentRect: NSRect(x: x, y: y, width: w, height: h),
