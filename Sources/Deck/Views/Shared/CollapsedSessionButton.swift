@@ -2,7 +2,6 @@ import SwiftUI
 import AppKit
 
 /// A collapsed sidebar icon button that shows a floating tooltip to the right on hover.
-/// Uses NSWindow for the tooltip so it renders above all other views without clipping.
 struct CollapsedSessionButton<Icon: View>: View {
     let session: Session
     let isActive: Bool
@@ -56,15 +55,14 @@ struct CollapsedSessionButton<Icon: View>: View {
         let label = session.displayName
         let font = NSFont.systemFont(ofSize: 12, weight: .medium)
         let size = (label as NSString).size(withAttributes: [.font: font])
-        let padding: CGFloat = 20
-        let height: CGFloat = 28
-        let width = size.width + padding
+        let hPad: CGFloat = 16
+        let vPad: CGFloat = 8
+        let width = size.width + hPad
+        let height = size.height + vPad
 
-        // Position to the right of the button, vertically centered
-        let screenFrame = screen.frame
+        // Position to the right of the button
         let x = buttonFrame.maxX + 6
-        // Convert from SwiftUI coordinates (top-left origin) to screen (bottom-left origin)
-        let y = screenFrame.height - buttonFrame.midY - (height / 2)
+        let y = screen.frame.height - buttonFrame.midY - (height / 2)
 
         let window = NSWindow(
             contentRect: NSRect(x: x, y: y, width: width, height: height),
@@ -78,22 +76,30 @@ struct CollapsedSessionButton<Icon: View>: View {
         window.ignoresMouseEvents = true
         window.hasShadow = true
 
-        let hostView = NSHostingView(rootView:
-            Text(label)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(theme.text.primary.swiftUIColor)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(theme.surfaces.elevated.swiftUIColor)
-                        .shadow(color: .black.opacity(0.3), radius: 8, y: 2)
-                )
+        // Use a simple NSVisualEffectView + NSTextField (no SwiftUI hosting)
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: width, height: height))
+
+        let bg = NSVisualEffectView(frame: container.bounds)
+        bg.material = .popover
+        bg.state = .active
+        bg.wantsLayer = true
+        bg.layer?.cornerRadius = 6
+        bg.layer?.masksToBounds = true
+        container.addSubview(bg)
+
+        let textField = NSTextField(labelWithString: label)
+        textField.font = font
+        textField.textColor = .labelColor
+        textField.sizeToFit()
+        textField.frame.origin = NSPoint(
+            x: (width - textField.frame.width) / 2,
+            y: (height - textField.frame.height) / 2
         )
-        window.contentView = hostView
+        container.addSubview(textField)
+
+        window.contentView = container
         window.orderFront(nil)
 
-        // Fade in
         window.alphaValue = 0
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.1
