@@ -120,7 +120,7 @@ struct TerminalContainerView: View {
         )
         .onChange(of: terminalTitle) { _, newTitle in
             if session.name == nil && !newTitle.isEmpty {
-                session.autoName = "\(session.agentType.namePrefix): \(newTitle)"
+                session.autoName = newTitle
             }
         }
     }

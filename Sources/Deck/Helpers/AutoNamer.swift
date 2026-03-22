@@ -18,21 +18,21 @@ enum AutoNamer {
             let cleaned = title
                 .replacingOccurrences(of: #"^[^:]+:\s*"#, with: "", options: .regularExpression)
             if !cleaned.isEmpty {
-                return "\(agentType.namePrefix): \(cleaned)"
+                return cleaned
             }
         }
 
         // Priority 2: Git branch + directory name
         if let branch = gitBranch ?? GitDetector.currentBranch(in: workingDirectory) {
-            return "\(agentType.namePrefix): \(dirName)/\(branch)"
+            return "\(dirName)/\(branch)"
         }
 
         // Priority 3: Directory name
         if dirName != NSHomeDirectory() && dirName != "aaronstevens" {
-            return "\(agentType.namePrefix): \(dirName)"
+            return dirName
         }
 
         // Priority 4: Fallback
-        return "\(agentType.namePrefix) \(sessionIndex + 1)"
+        return "Session \(sessionIndex + 1)"
     }
 }

@@ -70,8 +70,8 @@ struct Session: Identifiable, Codable, Hashable {
         self.claudeModel = nil
         self.claudeContinue = false
 
-        // Generate initial auto-name
+        // Generate initial auto-name (agent type shown on second line, so no prefix needed)
         let dirName = URL(fileURLWithPath: workingDirectory).lastPathComponent
-        self.autoName = "\(agentType.namePrefix): \(dirName)"
+        self.autoName = dirName
     }
 }
