@@ -1,7 +1,7 @@
 import SwiftUI
 import AppKit
 
-/// A collapsed sidebar icon button that shows a tooltip with arrow to the right on hover.
+/// A collapsed sidebar icon button that shows a popover tooltip to the right on hover.
 struct CollapsedSessionButton<Icon: View>: View {
     let session: Session
     let isActive: Bool
@@ -10,8 +10,7 @@ struct CollapsedSessionButton<Icon: View>: View {
     @ViewBuilder let icon: Icon
 
     @State private var isHovered = false
-    @State private var tooltipWindow: NSWindow?
-    @State private var buttonFrame: CGRect = .zero
+    @State private var popover: NSPopover?
 
     var body: some View {
         Button(action: onSelect) {
@@ -33,195 +32,118 @@ struct CollapsedSessionButton<Icon: View>: View {
             )
         }
         .buttonStyle(HoverButtonStyle(hoverColor: theme.surfaces.hover.swiftUIColor))
-        .background(GeometryReader { geo in
-            Color.clear.preference(key: FramePreferenceKey.self, value: geo.frame(in: .global))
-        })
-        .onPreferenceChange(FramePreferenceKey.self) { buttonFrame = $0 }
+        .overlay(
+            // Invisible anchor view for the popover
+            TooltipAnchor(
+                text: session.displayName,
+                session: session,
+                isHovered: $isHovered,
+                popover: $popover
+            )
+            .frame(width: 1, height: 1)
+            .allowsHitTesting(false)
+        )
         .onHover { hovering in
             isHovered = hovering
-            if hovering {
-                showTooltip()
-            } else {
-                hideTooltip()
-            }
         }
-    }
-
-    private func showTooltip() {
-        hideTooltip()
-
-        guard let screen = NSApp.keyWindow?.screen ?? NSScreen.main else { return }
-
-        let label = session.displayName
-        let font = NSFont.systemFont(ofSize: 12, weight: .medium)
-        let textSize = (label as NSString).size(withAttributes: [.font: font])
-        let hPad: CGFloat = 20
-        let vPad: CGFloat = 10
-        let arrowWidth: CGFloat = 7
-        let bubbleWidth = textSize.width + hPad
-        let bubbleHeight = textSize.height + vPad
-        let totalWidth = bubbleWidth + arrowWidth
-        let totalHeight = max(bubbleHeight, 28)
-
-        // Convert button frame from SwiftUI global coords to screen coords
-        // SwiftUI global = relative to window content, y-down
-        // Screen coords = absolute, y-up from bottom
-        guard let windowFrame = NSApp.keyWindow?.frame else { return }
-        let x = windowFrame.minX + buttonFrame.maxX + 4
-        let y = windowFrame.maxY - buttonFrame.midY - (totalHeight / 2)
-
-        let window = NSWindow(
-            contentRect: NSRect(x: x, y: y, width: totalWidth, height: totalHeight),
-            styleMask: [.borderless],
-            backing: .buffered,
-            defer: false
-        )
-        window.isOpaque = false
-        window.backgroundColor = .clear
-        window.level = .floating
-        window.ignoresMouseEvents = true
-        window.hasShadow = false
-
-        let tooltipView = TooltipView(
-            frame: NSRect(x: 0, y: 0, width: totalWidth, height: totalHeight),
-            text: label,
-            font: font,
-            arrowWidth: arrowWidth,
-            bgColor: theme.surfaces.elevated.nsColor,
-            textColor: theme.text.primary.nsColor
-        )
-        window.contentView = tooltipView
-        window.orderFront(nil)
-
-        window.alphaValue = 0
-        NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.1
-            window.animator().alphaValue = 1
-        }
-
-        tooltipWindow = window
-    }
-
-    private func hideTooltip() {
-        guard let window = tooltipWindow else { return }
-        NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = 0.08
-            window.animator().alphaValue = 0
-        }, completionHandler: {
-            window.orderOut(nil)
-        })
-        tooltipWindow = nil
     }
 }
 
-/// Custom NSView that draws a tooltip bubble with a left-pointing arrow.
-private class TooltipView: NSView {
+/// NSViewRepresentable that manages an NSPopover tooltip anchored to this view.
+private struct TooltipAnchor: NSViewRepresentable {
     let text: String
-    let font: NSFont
-    let arrowWidth: CGFloat
-    let bgColor: NSColor
-    let textColor: NSColor
+    let session: Session
+    @Binding var isHovered: Bool
+    @Binding var popover: NSPopover?
 
-    init(frame: NSRect, text: String, font: NSFont, arrowWidth: CGFloat, bgColor: NSColor, textColor: NSColor) {
-        self.text = text
-        self.font = font
-        self.arrowWidth = arrowWidth
-        self.bgColor = bgColor
-        self.textColor = textColor
-        super.init(frame: frame)
-        wantsLayer = true
-        layer?.backgroundColor = .clear
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        context.coordinator.anchorView = view
+        return view
     }
 
-    required init?(coder: NSCoder) { fatalError() }
-
-    override func draw(_ dirtyRect: NSRect) {
-        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
-
-        let bounds = self.bounds
-        let cornerRadius: CGFloat = 7
-        let arrowH: CGFloat = 10  // arrow height (half)
-        let midY = bounds.midY
-
-        // Bubble rect (right of arrow)
-        let bubbleRect = NSRect(
-            x: arrowWidth,
-            y: 0,
-            width: bounds.width - arrowWidth,
-            height: bounds.height
-        )
-
-        // Build path: rounded rect with left-pointing arrow
-        let path = CGMutablePath()
-
-        // Start at top-left of bubble (after corner)
-        path.move(to: CGPoint(x: bubbleRect.minX + cornerRadius, y: bubbleRect.maxY))
-
-        // Top edge
-        path.addLine(to: CGPoint(x: bubbleRect.maxX - cornerRadius, y: bubbleRect.maxY))
-        // Top-right corner
-        path.addArc(center: CGPoint(x: bubbleRect.maxX - cornerRadius, y: bubbleRect.maxY - cornerRadius),
-                     radius: cornerRadius, startAngle: .pi / 2, endAngle: 0, clockwise: true)
-        // Right edge
-        path.addLine(to: CGPoint(x: bubbleRect.maxX, y: cornerRadius))
-        // Bottom-right corner
-        path.addArc(center: CGPoint(x: bubbleRect.maxX - cornerRadius, y: cornerRadius),
-                     radius: cornerRadius, startAngle: 0, endAngle: -.pi / 2, clockwise: true)
-        // Bottom edge
-        path.addLine(to: CGPoint(x: bubbleRect.minX + cornerRadius, y: bubbleRect.minY))
-        // Bottom-left corner
-        path.addArc(center: CGPoint(x: bubbleRect.minX + cornerRadius, y: cornerRadius),
-                     radius: cornerRadius, startAngle: -.pi / 2, endAngle: .pi, clockwise: true)
-        // Left edge down to arrow
-        path.addLine(to: CGPoint(x: bubbleRect.minX, y: midY + arrowH))
-        // Arrow point
-        path.addLine(to: CGPoint(x: 0, y: midY))
-        // Arrow back
-        path.addLine(to: CGPoint(x: bubbleRect.minX, y: midY - arrowH))
-        // Left edge up to top-left corner
-        path.addLine(to: CGPoint(x: bubbleRect.minX, y: bubbleRect.maxY - cornerRadius))
-        // Top-left corner
-        path.addArc(center: CGPoint(x: bubbleRect.minX + cornerRadius, y: bubbleRect.maxY - cornerRadius),
-                     radius: cornerRadius, startAngle: .pi, endAngle: .pi / 2, clockwise: true)
-
-        path.closeSubpath()
-
-        // Shadow
-        ctx.saveGState()
-        ctx.setShadow(offset: CGSize(width: 0, height: -2), blur: 8, color: NSColor.black.withAlphaComponent(0.3).cgColor)
-        ctx.setFillColor(bgColor.cgColor)
-        ctx.addPath(path)
-        ctx.fillPath()
-        ctx.restoreGState()
-
-        // Fill again without shadow (for crisp edges)
-        ctx.setFillColor(bgColor.cgColor)
-        ctx.addPath(path)
-        ctx.fillPath()
-
-        // Border
-        ctx.setStrokeColor(NSColor.white.withAlphaComponent(0.08).cgColor)
-        ctx.setLineWidth(0.5)
-        ctx.addPath(path)
-        ctx.strokePath()
-
-        // Text
-        let attrs: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: textColor,
-        ]
-        let textSize = (text as NSString).size(withAttributes: attrs)
-        let textOrigin = NSPoint(
-            x: arrowWidth + (bubbleRect.width - textSize.width) / 2,
-            y: (bounds.height - textSize.height) / 2
-        )
-        (text as NSString).draw(at: textOrigin, withAttributes: attrs)
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.text = text
+        if isHovered && popover == nil {
+            // Show after tiny delay to avoid flicker
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                guard self.isHovered else { return }
+                context.coordinator.showPopover()
+            }
+        } else if !isHovered && popover != nil {
+            context.coordinator.hidePopover()
+        }
     }
-}
 
-private struct FramePreferenceKey: PreferenceKey {
-    static var defaultValue: CGRect = .zero
-    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
-        value = nextValue()
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    class Coordinator {
+        var parent: TooltipAnchor
+        weak var anchorView: NSView?
+        var text: String = ""
+
+        init(parent: TooltipAnchor) {
+            self.parent = parent
+        }
+
+        func showPopover() {
+            guard let anchor = anchorView, anchor.window != nil else { return }
+            guard parent.popover == nil else { return }
+
+            // Session name
+            let nameLabel = NSTextField(labelWithString: text)
+            nameLabel.font = .systemFont(ofSize: 13, weight: .semibold)
+            nameLabel.textColor = .white
+            nameLabel.backgroundColor = .clear
+            nameLabel.isBordered = false
+            nameLabel.isEditable = false
+            nameLabel.sizeToFit()
+
+            // Status line
+            let status = parent.session.isRunning
+                ? parent.session.agentStatus.label
+                : (parent.session.exitCode != nil && parent.session.exitCode != 0 ? "Exited" : "Ready")
+            let statusLabel = NSTextField(labelWithString: status)
+            statusLabel.font = .systemFont(ofSize: 11, weight: .regular)
+            statusLabel.textColor = NSColor.white.withAlphaComponent(0.5)
+            statusLabel.backgroundColor = .clear
+            statusLabel.isBordered = false
+            statusLabel.isEditable = false
+            statusLabel.sizeToFit()
+
+            let hPad: CGFloat = 14
+            let vPad: CGFloat = 10
+            let width = max(nameLabel.frame.width, statusLabel.frame.width) + hPad * 2
+            let height = nameLabel.frame.height + statusLabel.frame.height + 4 + vPad * 2
+
+            let contentView = NSView(frame: NSRect(x: 0, y: 0, width: width, height: height))
+            statusLabel.frame.origin = NSPoint(x: hPad, y: vPad)
+            nameLabel.frame.origin = NSPoint(x: hPad, y: vPad + statusLabel.frame.height + 4)
+            contentView.addSubview(nameLabel)
+            contentView.addSubview(statusLabel)
+
+            let vc = NSViewController()
+            vc.view = contentView
+
+            let pop = NSPopover()
+            pop.contentViewController = vc
+            pop.behavior = .semitransient
+            pop.animates = true
+            // Dark appearance for modern look
+            pop.appearance = NSAppearance(named: .darkAqua)
+
+            // Show with offset — use a wider rect to push it further right
+            let offsetRect = NSRect(x: anchor.bounds.maxX + 8, y: 0, width: 1, height: anchor.bounds.height)
+            pop.show(relativeTo: offsetRect, of: anchor, preferredEdge: .maxX)
+
+            parent.popover = pop
+        }
+
+        func hidePopover() {
+            parent.popover?.performClose(nil)
+            parent.popover = nil
+        }
     }
 }
