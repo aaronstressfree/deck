@@ -56,50 +56,38 @@ struct DesignPanelView: View {
     }
 
     private var panelHeader: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
-                if let el = designMode.selectedElement {
-                    // Element tag badge
-                    Text("<\(el.tagName)>")
-                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(theme.accent.primary.swiftUIColor)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(theme.accent.muted.swiftUIColor)
-                        .cornerRadius(4)
-
-                    Text(el.selector)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(theme.text.secondary.swiftUIColor)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                } else {
-                    Image(systemName: "rectangle.and.hand.point.up.left.filled")
-                        .font(.system(size: 13))
-                        .foregroundStyle(theme.accent.primary.swiftUIColor)
-                    Text("Select an element")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(theme.text.secondary.swiftUIColor)
-                }
-                Spacer()
-                Button(action: { designMode.deselectElement() }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 14))
-                        .foregroundStyle(theme.text.quaternary.swiftUIColor)
-                }
-                .buttonStyle(.plain)
-            }
-
-            // Show element classes if present
-            if let el = designMode.selectedElement, !el.className.isEmpty {
-                Text(".\(el.className.split(separator: " ").joined(separator: " ."))")
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(theme.text.quaternary.swiftUIColor)
+        HStack(spacing: 8) {
+            if let el = designMode.selectedElement {
+                Text("<\(el.tagName)>")
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(theme.accent.primary.swiftUIColor)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(theme.accent.muted.swiftUIColor)
+                    .cornerRadius(4)
+                Text(el.selector)
+                    .font(.system(size: 12, design: .monospaced))
+                    .foregroundStyle(theme.text.secondary.swiftUIColor)
                     .lineLimit(1)
+                    .truncationMode(.middle)
+            } else {
+                Image(systemName: "cursorarrow.click.2")
+                    .font(.system(size: 13))
+                    .foregroundStyle(theme.text.tertiary.swiftUIColor)
+                Text("Select an element")
+                    .font(.system(size: 12))
+                    .foregroundStyle(theme.text.tertiary.swiftUIColor)
             }
+            Spacer()
+            Button(action: { designMode.deselectElement() }) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(theme.text.quaternary.swiftUIColor)
+            }
+            .buttonStyle(.plain)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
         .background(theme.surfaces.elevated.swiftUIColor)
     }
 

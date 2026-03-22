@@ -16,6 +16,7 @@ struct SessionGroupView: View {
     let onDeleteGroup: () -> Void
     let onNewSession: (AgentType) -> Void
     let onUpdateInstructions: (String) -> Void
+    var onReorderSessions: ((IndexSet, Int) -> Void)? = nil
 
     @State private var isEditing = false
     @State private var editName: String = ""
@@ -43,6 +44,9 @@ struct SessionGroupView: View {
                         availableGroups: allGroups
                     )
                     .padding(.leading, 6)
+                }
+                .onMove { source, destination in
+                    onReorderSessions?(source, destination)
                 }
             }
         }
@@ -108,35 +112,26 @@ struct SessionGroupView: View {
 
             Spacer()
 
-            // Action buttons — always rendered for stable popover anchoring,
-            // opacity controlled by hover state
-            HStack(spacing: 6) {
-                // Settings gear
-                Image(systemName: "gearshape")
-                    .font(.system(size: 10))
-                    .foregroundStyle(theme.text.quaternary.swiftUIColor)
-                    .frame(width: 16, height: 16)
-                    .contentShape(Rectangle())
-                    .onTapGesture { showSettings = true }
+            // Action buttons — always rendered for stable popover anchoring
+            HStack(spacing: 4) {
+                SidebarIconButton(icon: "gearshape", theme: theme) {
+                    showSettings = true
+                }
 
-                // New chat "+"
-                Image(systemName: "plus")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(theme.text.quaternary.swiftUIColor)
-                    .frame(width: 16, height: 16)
-                    .contentShape(Rectangle())
-                    .onTapGesture { showNewPicker.toggle() }
-                    .popover(isPresented: $showNewPicker, arrowEdge: .trailing) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            agentPickerButton(icon: "sparkles", label: "Claude Code", type: .claude)
-                            agentPickerButton(icon: "bolt.fill", label: "Amp", type: .amp)
-                            agentPickerButton(icon: "terminal.fill", label: "Shell", type: .shell)
-                        }
-                        .padding(6)
-                        .frame(width: 160)
-                        .background(theme.surfaces.elevated.swiftUIColor)
-                        .environment(\.colorScheme, .dark)
+                SidebarIconButton(icon: "plus", theme: theme) {
+                    showNewPicker.toggle()
+                }
+                .popover(isPresented: $showNewPicker, arrowEdge: .trailing) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        agentPickerButton(icon: "sparkles", label: "Claude Code", type: .claude)
+                        agentPickerButton(icon: "bolt.fill", label: "Amp", type: .amp)
+                        agentPickerButton(icon: "terminal.fill", label: "Shell", type: .shell)
                     }
+                    .padding(4)
+                    .frame(width: 160)
+                    .background(theme.surfaces.elevated.swiftUIColor)
+                    .environment(\.colorScheme, .dark)
+                }
             }
             .opacity(isHeaderHovered && !isEditing ? 1 : 0)
         }
@@ -173,24 +168,10 @@ struct SessionGroupView: View {
     // MARK: - Helpers
 
     private func agentPickerButton(icon: String, label: String, type: AgentType) -> some View {
-        Button(action: {
+        SidebarMenuRow(icon: icon, label: label, theme: theme) {
             onNewSession(type)
             showNewPicker = false
-        }) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.system(size: 14))
-                    .foregroundStyle(theme.text.secondary.swiftUIColor)
-                    .frame(width: 18)
-                Text(label)
-                    .font(.system(size: 14))
-                    .foregroundStyle(theme.text.primary.swiftUIColor)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
     }
 
     private func truncatedPath(_ path: String) -> String {

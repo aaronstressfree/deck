@@ -39,6 +39,9 @@ struct SidebarView: View {
                             },
                             onUpdateInstructions: { instructions in
                                 sessionManager.updateGroupInstructions(id: group.id, instructions: instructions)
+                            },
+                            onReorderSessions: { source, destination in
+                                sessionManager.reorderSessions(inGroup: group.id, from: source, to: destination)
                             }
                         )
                     }

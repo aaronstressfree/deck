@@ -178,6 +178,28 @@ final class SessionManager: ObservableObject {
         saveState()
     }
 
+    /// Reorder sessions within a group by moving from one set of indices to a destination
+    func reorderSessions(inGroup groupId: UUID, from source: IndexSet, to destination: Int) {
+        // Get the sessions in this group (in their current order within the flat array)
+        var groupSessions = sessions.filter { $0.groupId == groupId }
+        groupSessions.move(fromOffsets: source, toOffset: destination)
+
+        // Rebuild the flat sessions array preserving non-group session positions
+        var result: [Session] = []
+        var groupIterator = groupSessions.makeIterator()
+        for session in sessions {
+            if session.groupId == groupId {
+                if let next = groupIterator.next() {
+                    result.append(next)
+                }
+            } else {
+                result.append(session)
+            }
+        }
+        sessions = result
+        saveStateDebounced()
+    }
+
     func controllerFor(sessionId: UUID) -> TerminalController {
         if let existing = terminalControllers[sessionId] {
             return existing

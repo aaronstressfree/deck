@@ -88,14 +88,9 @@ struct SessionRowView: View {
             Spacer(minLength: 4)
 
             if isHovered && !isEditing {
-                Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(theme.text.quaternary.swiftUIColor)
-                    .frame(width: 16, height: 16)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        showCloseConfirmation = true
-                    }
+                SidebarIconButton(icon: "xmark", theme: theme) {
+                    showCloseConfirmation = true
+                }
             }
         }
         .padding(.horizontal, 8)
