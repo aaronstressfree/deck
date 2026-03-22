@@ -22,6 +22,11 @@ mkdir -p "$APP_DIR/Contents/Resources"
 # Copy binary
 cp .build/debug/Deck "$APP_DIR/Contents/MacOS/Deck"
 
+# Copy app icon
+if [ -f "AppIcon.icns" ]; then
+    cp AppIcon.icns "$APP_DIR/Contents/Resources/AppIcon.icns"
+fi
+
 # Copy SwiftTerm resources if present
 if [ -d ".build/debug/SwiftTerm_SwiftTerm.bundle" ]; then
     cp -r .build/debug/SwiftTerm_SwiftTerm.bundle "$APP_DIR/Contents/Resources/"
@@ -45,6 +50,8 @@ cat > "$APP_DIR/Contents/Info.plist" << PLIST
     <string>${VERSION}</string>
     <key>CFBundleExecutable</key>
     <string>Deck</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>LSMinimumSystemVersion</key>

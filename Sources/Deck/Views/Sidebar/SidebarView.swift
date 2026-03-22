@@ -10,8 +10,8 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Compact drag region for traffic lights
-            Color.clear.frame(height: 8)
+            // Minimal clearance for traffic lights
+            Color.clear.frame(height: 2)
 
             // Project list — every session belongs to a project
             ScrollView {
