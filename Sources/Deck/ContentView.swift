@@ -132,27 +132,15 @@ struct ContentView: View {
 
     private func collapsedSessionIcon(_ session: Session) -> some View {
         let isActive = session.id == sessionManager.activeSessionId
-        return Button(action: { sessionManager.switchToSession(id: session.id) }) {
-            ZStack {
-                agentIconView(session.agentType, isActive: isActive)
-                    .frame(width: 16, height: 16)
-
-                if session.isRunning && session.agentStatus.isActive {
-                    Circle()
-                        .fill(theme.accent.primary.swiftUIColor)
-                        .frame(width: 5, height: 5)
-                        .offset(x: 8, y: -8)
-                        .opacity(0.8)
-                }
-            }
-            .frame(width: 32, height: 28)
-            .background(
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(isActive ? theme.surfaces.selected.swiftUIColor : Color.clear)
-            )
+        return CollapsedSessionButton(
+            session: session,
+            isActive: isActive,
+            theme: theme,
+            onSelect: { sessionManager.switchToSession(id: session.id) }
+        ) {
+            agentIconView(session.agentType, isActive: isActive)
+                .frame(width: 16, height: 16)
         }
-        .buttonStyle(HoverButtonStyle(hoverColor: theme.surfaces.hover.swiftUIColor))
-        .help(session.displayName)
     }
 
     @ViewBuilder
