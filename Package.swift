@@ -18,6 +18,7 @@ let package = Package(
                 .copy("Resources/claude-icon.png"),
                 .copy("Resources/claude-icon@2x.png"),
                 .copy("Resources/AppIcon.icns"),
+                .copy("Resources/Fonts"),
             ]
         ),
         .testTarget(

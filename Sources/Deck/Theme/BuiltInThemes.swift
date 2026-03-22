@@ -111,7 +111,8 @@ extension Theme {
                 brightMagenta: ThemeColor(hex: "C8A8E8"),
                 brightCyan: ThemeColor(hex: "60D0E0"),
                 brightWhite: ThemeColor(hex: "E4E4E7")
-            )
+            ),
+            fontFamily: "JetBrainsMono-Regular"
         )
     )
 
@@ -225,7 +226,8 @@ extension Theme {
                 brightMagenta: ThemeColor(hex: "A855F7"),
                 brightCyan: ThemeColor(hex: "06B6D4"),
                 brightWhite: ThemeColor(hex: "F4F4F5")
-            )
+            ),
+            fontFamily: "IBMPlexMono"
         )
     )
 
@@ -339,7 +341,8 @@ extension Theme {
                 brightMagenta: ThemeColor(hex: "F0ABFC"),
                 brightCyan: ThemeColor(hex: "67E8F9"),
                 brightWhite: ThemeColor(hex: "FAF7F2")
-            )
+            ),
+            fontFamily: "SourceCodePro-Regular"
         )
     )
 

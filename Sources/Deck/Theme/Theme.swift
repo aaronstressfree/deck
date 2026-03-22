@@ -30,6 +30,7 @@ struct TerminalColors: Codable, Hashable, Sendable {
     var cursorText: ThemeColor
     var selection: ThemeColor
     var ansi: AnsiPalette
+    var fontFamily: String?  // nil = use user's setting or auto-detect
 }
 
 // MARK: - Surface Colors

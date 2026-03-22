@@ -57,6 +57,15 @@ class DeckAppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+/// Register all bundled fonts so they're available even if not installed system-wide
+private func registerBundledFonts() {
+    guard let fontsURL = Bundle.main.url(forResource: "Fonts", withExtension: nil) else { return }
+    guard let fontFiles = try? FileManager.default.contentsOfDirectory(at: fontsURL, includingPropertiesForKeys: nil) else { return }
+    for file in fontFiles where file.pathExtension == "ttf" || file.pathExtension == "otf" {
+        CTFontManagerRegisterFontsForURL(file as CFURL, .process, nil)
+    }
+}
+
 @main
 struct DeckApp: App {
     @NSApplicationDelegateAdaptor(DeckAppDelegate.self) var appDelegate
@@ -66,6 +75,10 @@ struct DeckApp: App {
     @StateObject private var updateChecker = UpdateChecker()
     @State private var showNewSessionSheet = false
     @State private var urlBarFocused = false
+
+    init() {
+        registerBundledFonts()
+    }
 
     var body: some Scene {
         // Set delegate references on every body evaluation
