@@ -169,6 +169,7 @@ struct TerminalBridge: NSViewRepresentable {
     @Binding var agentStatus: AgentStatus
     @Binding var isRunning: Bool
     @Binding var exitCode: Int?
+    @Binding var workingDir: String
 
     class Coordinator: NSObject, LocalProcessTerminalViewDelegate {
         var parent: TerminalBridge
@@ -182,7 +183,12 @@ struct TerminalBridge: NSViewRepresentable {
                 self.parent.controller.lastTerminalTitle = title
             }
         }
-        func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {}
+        func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {
+            guard let dir = directory, !dir.isEmpty else { return }
+            DispatchQueue.main.async {
+                self.parent.workingDir = dir
+            }
+        }
         func processTerminated(source: TerminalView, exitCode: Int32?) {
             DispatchQueue.main.async {
                 self.parent.isRunning = false

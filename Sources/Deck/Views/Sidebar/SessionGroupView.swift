@@ -17,6 +17,7 @@ struct SessionGroupView: View {
     let onNewSession: (AgentType) -> Void
     let onUpdateInstructions: (String) -> Void
     var onReorderSessions: ((IndexSet, Int) -> Void)? = nil
+    var onUpdateWorkingDirectory: ((String?) -> Void)? = nil
 
     @State private var isEditing = false
     @State private var editName: String = ""
@@ -72,7 +73,8 @@ struct SessionGroupView: View {
                 group: group,
                 sessions: sessions,
                 onRename: onRenameGroup,
-                onUpdateInstructions: onUpdateInstructions
+                onUpdateInstructions: onUpdateInstructions,
+                onUpdateWorkingDirectory: onUpdateWorkingDirectory
             )
         }
     }
@@ -193,9 +195,11 @@ struct ProjectSettingsSheet: View {
     let sessions: [Session]
     let onRename: (String) -> Void
     let onUpdateInstructions: (String) -> Void
+    var onUpdateWorkingDirectory: ((String?) -> Void)? = nil
 
     @State private var editName: String = ""
     @State private var editInstructions: String = ""
+    @State private var editDirectory: String = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -213,20 +217,26 @@ struct ProjectSettingsSheet: View {
             }
 
             // Working directory
-            if let dir = group.workingDirectory {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Working Directory")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.secondary)
-                    HStack {
-                        Text(dir)
-                            .font(.system(size: 14, design: .monospaced))
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        Spacer()
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Working Directory")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.secondary)
+                HStack {
+                    TextField("~/Development/my-project", text: $editDirectory)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 14, design: .monospaced))
+                    Button("Browse...") {
+                        let panel = NSOpenPanel()
+                        panel.canChooseDirectories = true
+                        panel.canChooseFiles = false
+                        panel.allowsMultipleSelection = false
+                        if panel.runModal() == .OK, let url = panel.url {
+                            editDirectory = url.path
+                        }
+                    }
+                    if !editDirectory.isEmpty {
                         Button("Show in Finder") {
-                            NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: dir)
+                            NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: editDirectory)
                         }
                         .font(.system(size: 12))
                     }
@@ -310,6 +320,8 @@ struct ProjectSettingsSheet: View {
                 Button("Save") {
                     if editName != group.name { onRename(editName) }
                     if editInstructions != group.instructions { onUpdateInstructions(editInstructions) }
+                    let newDir = editDirectory.isEmpty ? nil : editDirectory
+                    if newDir != group.workingDirectory { onUpdateWorkingDirectory?(newDir) }
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
@@ -321,6 +333,7 @@ struct ProjectSettingsSheet: View {
         .onAppear {
             editName = group.name
             editInstructions = group.instructions
+            editDirectory = group.workingDirectory ?? ""
         }
     }
 }

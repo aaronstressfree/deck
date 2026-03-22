@@ -301,6 +301,13 @@ final class SessionManager: ObservableObject {
         refreshContext()
     }
 
+    func updateGroupWorkingDirectory(id: UUID, workingDirectory: String?) {
+        guard let index = groups.firstIndex(where: { $0.id == id }) else { return }
+        groups[index].workingDirectory = workingDirectory
+        saveState()
+        refreshContext()
+    }
+
     func deleteGroup(id: UUID) {
         if let group = groups.first(where: { $0.id == id }), group.isGeneral { return }
         let generalId = ensureGeneralProject().id

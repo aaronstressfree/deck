@@ -118,7 +118,8 @@ struct TerminalContainerView: View {
             terminalTitle: $terminalTitle,
             agentStatus: $session.agentStatus,
             isRunning: $session.isRunning,
-            exitCode: $session.exitCode
+            exitCode: $session.exitCode,
+            workingDir: $session.workingDirectory
         )
         .onChange(of: terminalTitle) { _, newTitle in
             if session.name == nil && !newTitle.isEmpty {

@@ -42,6 +42,9 @@ struct SidebarView: View {
                             },
                             onReorderSessions: { source, destination in
                                 sessionManager.reorderSessions(inGroup: group.id, from: source, to: destination)
+                            },
+                            onUpdateWorkingDirectory: { dir in
+                                sessionManager.updateGroupWorkingDirectory(id: group.id, workingDirectory: dir)
                             }
                         )
                     }
