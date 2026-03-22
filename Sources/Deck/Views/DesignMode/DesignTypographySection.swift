@@ -10,6 +10,7 @@ struct DesignTypographySection: View {
     @State private var textAlign: String = "left"
 
     private let weights = ["Light", "Regular", "Medium", "Semibold", "Bold"]
+    @State private var didSync = false
 
     var body: some View {
         inspectorSection(
@@ -93,6 +94,38 @@ struct DesignTypographySection: View {
                     value: newValue
                 ))
             }
+        }
+        .onChange(of: designMode.selectedElement?.selector) { _, _ in
+            syncFromElement()
+        }
+        .onAppear { syncFromElement() }
+    }
+
+    private func syncFromElement() {
+        guard let styles = designMode.selectedElement?.computedStyles, !didSync else { return }
+        didSync = true
+        if let size = styles["font-size"], let px = Double(size.replacingOccurrences(of: "px", with: "")) {
+            fontSize = px
+        }
+        if let weight = styles["font-weight"] {
+            fontWeight = cssWeightName(weight)
+        }
+        if let lh = styles["line-height"], lh != "normal" {
+            lineHeight = lh
+        }
+        if let align = styles["text-align"] {
+            textAlign = align
+        }
+    }
+
+    private func cssWeightName(_ value: String) -> String {
+        switch value {
+        case "300": return "Light"
+        case "400", "normal": return "Regular"
+        case "500": return "Medium"
+        case "600": return "Semibold"
+        case "700", "bold": return "Bold"
+        default: return "Regular"
         }
     }
 

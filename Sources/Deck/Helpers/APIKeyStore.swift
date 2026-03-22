@@ -1,20 +1,34 @@
 import Foundation
 
-/// Manages the Anthropic API key — defaults to the built-in key,
-/// with an optional user override via Settings.
+/// Manages the Anthropic API key.
+/// No built-in key — users provide their own via Settings.
+/// The app works fully without one; AI features (naming, project enhancement)
+/// are progressive enhancements that activate when a key is set.
 enum APIKeyStore {
-    private static let defaultKey = "" // Set your Anthropic API key in Settings, or set ANTHROPIC_API_KEY env var
     private static let userDefaultsKey = "anthropicApiKey"
 
-    /// The active API key: user override if set, otherwise the built-in default.
+    /// The API key, if the user has set one. Empty string = no key.
     static var apiKey: String {
-        let custom = UserDefaults.standard.string(forKey: userDefaultsKey) ?? ""
-        return custom.isEmpty ? defaultKey : custom
+        UserDefaults.standard.string(forKey: userDefaultsKey) ?? ""
+    }
+
+    /// Whether an API key is available for AI features.
+    static var hasKey: Bool {
+        !apiKey.isEmpty
     }
 
     /// Whether the user has set a custom key.
     static var isUsingCustomKey: Bool {
-        let custom = UserDefaults.standard.string(forKey: userDefaultsKey) ?? ""
-        return !custom.isEmpty
+        hasKey
+    }
+
+    /// Save a user-provided API key.
+    static func setKey(_ key: String) {
+        UserDefaults.standard.set(key, forKey: userDefaultsKey)
+    }
+
+    /// Clear the stored key.
+    static func clearKey() {
+        UserDefaults.standard.removeObject(forKey: userDefaultsKey)
     }
 }

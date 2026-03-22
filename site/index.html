@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deck — AI Terminal for Designers</title>
+    <style>
+        :root {
+            --bg: #09090B;
+            --surface: #111113;
+            --elevated: #1A1A1F;
+            --card: #141417;
+            --border: rgba(255,255,255,0.06);
+            --border-hover: rgba(255,255,255,0.12);
+            --text: #FAFAFA;
+            --text-2: #A1A1AA;
+            --text-3: #71717A;
+            --text-4: #3F3F46;
+            --accent: #818CF8;
+            --accent-2: #6366F1;
+            --accent-glow: rgba(129,140,248,0.15);
+            --rose: #FB7185;
+            --rose-glow: rgba(251,113,133,0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+
+        .container { max-width: 1000px; margin: 0 auto; padding: 0 24px; }
+
+        /* ---- Nav ---- */
+        nav {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+            background: rgba(9,9,11,0.75);
+            border-bottom: 1px solid var(--border);
+        }
+        nav .container {
+            display: flex; align-items: center; justify-content: space-between; height: 56px;
+        }
+        .nav-logo {
+            font-size: 17px; font-weight: 700; letter-spacing: -0.02em;
+            color: var(--text); text-decoration: none;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .nav-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+        .nav-links { display: flex; gap: 28px; align-items: center; }
+        .nav-links a {
+            font-size: 13px; font-weight: 500; color: var(--text-3);
+            text-decoration: none; transition: color 0.2s;
+        }
+        .nav-links a:hover { color: var(--text); }
+
+        /* ---- Hero ---- */
+        .hero {
+            padding: 160px 0 40px;
+            text-align: center;
+            position: relative;
+        }
+        /* Ambient glow */
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px; height: 400px;
+            background: radial-gradient(ellipse, var(--accent-glow) 0%, transparent 70%);
+            pointer-events: none;
+            filter: blur(60px);
+        }
+        .hero-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+            color: var(--accent);
+            background: rgba(129,140,248,0.08);
+            border: 1px solid rgba(129,140,248,0.15);
+            padding: 6px 16px; border-radius: 100px;
+            margin-bottom: 28px;
+        }
+        .hero h1 {
+            font-size: 60px; font-weight: 800; letter-spacing: -0.04em; line-height: 1.05;
+            margin-bottom: 20px;
+            background: linear-gradient(180deg, #FAFAFA 30%, #71717A 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .hero p {
+            font-size: 19px; line-height: 1.6; color: var(--text-2);
+            max-width: 520px; margin: 0 auto 36px;
+        }
+        .hero-actions {
+            display: flex; align-items: center; justify-content: center; gap: 16px;
+            margin-bottom: 64px;
+        }
+        .btn-primary {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: var(--accent-2); color: white;
+            font-size: 14px; font-weight: 600;
+            padding: 12px 28px; border-radius: 10px;
+            text-decoration: none; border: none; cursor: pointer;
+            transition: all 0.2s; box-shadow: 0 0 20px var(--accent-glow);
+        }
+        .btn-primary:hover { background: var(--accent); transform: translateY(-1px); box-shadow: 0 0 30px var(--accent-glow); }
+        .btn-secondary {
+            font-size: 13px; font-weight: 500; color: var(--text-3);
+            text-decoration: none; padding: 12px 20px; border-radius: 10px;
+            border: 1px solid var(--border); transition: all 0.2s;
+        }
+        .btn-secondary:hover { color: var(--text-2); border-color: var(--border-hover); }
+
+        /* ---- App Mockup ---- */
+        .mockup-wrap {
+            position: relative;
+            max-width: 880px;
+            margin: 0 auto;
+        }
+        /* Glow behind mockup */
+        .mockup-wrap::before {
+            content: '';
+            position: absolute;
+            inset: -40px;
+            background: radial-gradient(ellipse at 60% 50%, var(--accent-glow) 0%, var(--rose-glow) 40%, transparent 70%);
+            filter: blur(80px);
+            pointer-events: none;
+            z-index: 0;
+        }
+        .mockup {
+            position: relative; z-index: 1;
+            background: var(--surface);
+            border: 1px solid var(--border-hover);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 24px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03) inset;
+        }
+        .mockup-titlebar {
+            display: flex; align-items: center; gap: 8px;
+            padding: 12px 16px;
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+        }
+        .dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot-red { background: #FF5F57; }
+        .dot-yellow { background: #FEBC2E; }
+        .dot-green { background: #28C840; }
+        .mockup-body {
+            display: grid;
+            grid-template-columns: 200px 1fr 1fr;
+            height: 420px;
+        }
+        /* Sidebar */
+        .mock-sidebar {
+            background: var(--card);
+            border-right: 1px solid var(--border);
+            padding: 16px 12px;
+            text-align: left;
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        .mock-sidebar-label {
+            font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+            color: var(--text-4); margin-bottom: 8px; padding: 0 6px;
+        }
+        .mock-session {
+            display: flex; align-items: center; gap: 8px;
+            padding: 7px 8px; border-radius: 6px;
+            font-size: 12px; color: var(--text-2);
+        }
+        .mock-session.active {
+            background: rgba(129,140,248,0.1);
+            color: var(--text);
+        }
+        .mock-session-dot {
+            width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+        }
+        .mock-session-dot.claude { background: var(--accent); }
+        .mock-session-dot.shell { background: var(--text-4); }
+        .mock-session-dot.amp { background: var(--rose); }
+        /* Terminal */
+        .mock-terminal {
+            padding: 20px;
+            font-family: 'SF Mono', 'Menlo', monospace;
+            font-size: 11px; line-height: 1.7;
+            color: var(--text-2);
+            text-align: left;
+            display: flex; flex-direction: column; justify-content: space-between;
+            border-right: 1px solid var(--border);
+        }
+        .mock-terminal-output { flex: 1; }
+        .mock-prompt {
+            color: var(--text-3); font-size: 11px;
+        }
+        .mock-prompt span { color: var(--accent); }
+        .mock-chatbox {
+            margin-top: 12px; padding: 10px 12px;
+            background: var(--elevated); border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 12px; color: var(--text);
+            font-family: -apple-system, system-ui, sans-serif;
+        }
+        .mock-cursor {
+            display: inline-block; width: 2px; height: 14px;
+            background: var(--accent); margin-left: 2px;
+            animation: blink 1s infinite;
+            vertical-align: text-bottom;
+        }
+        @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+        /* Browser */
+        .mock-browser {
+            display: flex; flex-direction: column;
+        }
+        .mock-urlbar {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 12px;
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            font-size: 11px; color: var(--text-3);
+        }
+        .mock-url-input {
+            flex: 1; padding: 5px 10px;
+            background: var(--elevated); border-radius: 6px;
+            font-size: 11px; color: var(--text-2);
+            font-family: 'SF Mono', monospace;
+        }
+        .mock-url-icon { color: var(--text-4); font-size: 13px; }
+        .mock-inspect-icon { color: var(--accent); font-size: 13px; }
+        .mock-page {
+            flex: 1; padding: 24px;
+            background: #FAFAFA;
+            text-align: left;
+            display: flex; flex-direction: column; gap: 12px;
+        }
+        .mock-page-h1 {
+            font-size: 20px; font-weight: 700; color: #111;
+        }
+        .mock-page-p {
+            font-size: 11px; color: #666; line-height: 1.5;
+        }
+        .mock-page-btn {
+            display: inline-block; padding: 8px 16px;
+            background: var(--accent-2); color: white;
+            border-radius: 6px; font-size: 11px; font-weight: 600;
+            width: fit-content;
+            box-shadow: 0 0 0 2px var(--accent);
+        }
+        .mock-page-card {
+            padding: 14px; background: white; border-radius: 8px;
+            border: 1px solid #E5E5E5;
+        }
+        .mock-page-card-title { font-size: 13px; font-weight: 600; color: #111; }
+        .mock-page-card-text { font-size: 10px; color: #888; margin-top: 4px; }
+
+        /* ---- Features ---- */
+        .features { padding: 100px 0; }
+        .features-header { text-align: center; margin-bottom: 56px; }
+        .features-header h2 {
+            font-size: 40px; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 12px;
+        }
+        .features-header p { font-size: 17px; color: var(--text-2); }
+
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+        .feature-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 14px; padding: 28px;
+            transition: all 0.25s;
+        }
+        .feature-card:hover {
+            border-color: var(--border-hover);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+        }
+        .feature-icon {
+            width: 36px; height: 36px; border-radius: 9px;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 14px; font-size: 18px;
+        }
+        .fi-chat { background: rgba(129,140,248,0.12); }
+        .fi-browser { background: rgba(251,113,133,0.12); }
+        .fi-inspect { background: rgba(52,211,153,0.12); }
+        .fi-sessions { background: rgba(251,191,36,0.12); }
+        .fi-context { background: rgba(129,140,248,0.12); }
+        .fi-themes { background: rgba(244,114,182,0.12); }
+        .feature-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+        .feature-card p { font-size: 13px; line-height: 1.6; color: var(--text-3); }
+
+        /* ---- Steps ---- */
+        .steps-section { padding: 80px 0; border-top: 1px solid var(--border); }
+        .steps {
+            display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 32px;
+            max-width: 800px; margin: 48px auto 0;
+        }
+        .step { text-align: center; }
+        .step-num {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 32px; height: 32px; border-radius: 8px;
+            background: rgba(129,140,248,0.1); color: var(--accent);
+            font-size: 14px; font-weight: 700; margin-bottom: 14px;
+        }
+        .step h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+        .step p { font-size: 13px; color: var(--text-3); line-height: 1.5; }
+
+        /* ---- CTA ---- */
+        .cta { padding: 80px 0; text-align: center; position: relative; }
+        .cta::before {
+            content: '';
+            position: absolute; left: 50%; top: 0;
+            transform: translateX(-50%);
+            width: 500px; height: 300px;
+            background: radial-gradient(ellipse, var(--rose-glow) 0%, transparent 70%);
+            filter: blur(80px); pointer-events: none;
+        }
+        .cta h2 { font-size: 36px; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 12px; }
+        .cta p { font-size: 16px; color: var(--text-2); margin-bottom: 28px; }
+        .install-cmd {
+            display: inline-flex; align-items: center; gap: 12px;
+            background: var(--surface); border: 1px solid var(--border-hover);
+            border-radius: 10px; padding: 14px 20px;
+            font-family: 'SF Mono', monospace; font-size: 12px;
+            color: var(--text-2); cursor: pointer; transition: all 0.2s;
+        }
+        .install-cmd:hover { border-color: var(--accent); box-shadow: 0 0 20px var(--accent-glow); }
+        .install-cmd code { color: var(--text); }
+        .install-cmd .tag {
+            font-family: -apple-system, system-ui, sans-serif;
+            font-size: 10px; font-weight: 600; color: var(--accent);
+            background: rgba(129,140,248,0.1); padding: 3px 8px; border-radius: 4px;
+        }
+        .cta-note {
+            margin-top: 20px; font-size: 12px; color: var(--text-4);
+        }
+        .cta-note a { color: var(--text-3); text-decoration: none; }
+        .cta-note a:hover { color: var(--text-2); }
+
+        /* ---- Footer ---- */
+        footer {
+            padding: 32px 0; border-top: 1px solid var(--border); text-align: center;
+        }
+        footer p { font-size: 12px; color: var(--text-4); }
+        footer a { color: var(--text-3); text-decoration: none; }
+        footer a:hover { color: var(--text-2); }
+
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 36px; }
+            .mockup-body { grid-template-columns: 1fr; height: auto; }
+            .mock-sidebar { display: none; }
+            .feature-grid { grid-template-columns: 1fr; }
+            .steps { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="container">
+        <a href="#" class="nav-logo"><span class="nav-dot"></span>Deck</a>
+        <div class="nav-links">
+            <a href="#features">Features</a>
+            <a href="#install">Install</a>
+            <a href="https://github.com/aaronstressfree/deck">Source</a>
+        </div>
+    </div>
+</nav>
+
+<section class="hero">
+    <div class="container">
+        <div class="hero-badge">Alpha</div>
+        <h1>The agent-first<br>terminal.</h1>
+        <p>A native Mac app for Claude Code and Amp. Chat input, browser preview, design inspector — one window for the whole loop. Alpha.</p>
+
+        <div class="hero-actions">
+            <a href="#install" class="btn-primary">Get Deck</a>
+            <a href="https://github.com/aaronstressfree/deck" class="btn-secondary">View source</a>
+        </div>
+
+        <div class="mockup-wrap">
+            <div class="mockup">
+                <div class="mockup-titlebar">
+                    <div class="dot dot-red"></div>
+                    <div class="dot dot-yellow"></div>
+                    <div class="dot dot-green"></div>
+                </div>
+                <div class="mockup-body">
+                    <div class="mock-sidebar">
+                        <div class="mock-sidebar-label">Dashboard</div>
+                        <div class="mock-session active">
+                            <div class="mock-session-dot claude"></div>
+                            Redesign hero
+                        </div>
+                        <div class="mock-session">
+                            <div class="mock-session-dot claude"></div>
+                            Fix auth flow
+                        </div>
+                        <div class="mock-session">
+                            <div class="mock-session-dot amp"></div>
+                            API endpoints
+                        </div>
+                        <div style="margin-top: 16px;">
+                            <div class="mock-sidebar-label">Portfolio</div>
+                            <div class="mock-session">
+                                <div class="mock-session-dot shell"></div>
+                                Dev server
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mock-terminal">
+                        <div class="mock-terminal-output">
+                            <div style="color: var(--accent); margin-bottom: 4px; font-size: 10px; font-weight: 600;">~ claude</div>
+                            <div style="color: var(--text-3); font-size: 10px; margin-bottom: 10px; line-height: 1.6;">
+                                I'll update the hero component. Let me edit the file and start the dev server.
+                            </div>
+                            <div style="font-size: 10px; margin-bottom: 6px;">
+                                <span style="color: var(--accent);">Edit</span> <span style="color: var(--text-3);">src/components/Hero.tsx</span>
+                            </div>
+                            <div style="font-size: 10px; color: var(--text-4); padding: 6px 8px; background: rgba(255,255,255,0.02); border-radius: 4px; margin-bottom: 8px; line-height: 1.6;">
+                                <span style="color: #22C55E;">+</span> <span style="color: var(--text-3);">fontSize: '48px',</span><br>
+                                <span style="color: #22C55E;">+</span> <span style="color: var(--text-3);">background: 'linear-gradient(...)',</span><br>
+                                <span style="color: var(--rose);">-</span> <span style="color: var(--text-4);">fontSize: '32px',</span>
+                            </div>
+                            <div style="font-size: 10px; margin-bottom: 4px;">
+                                <span style="color: var(--accent);">Run</span> <span style="color: var(--text-3);">npm run dev</span>
+                            </div>
+                            <div style="font-size: 10px; color: #22C55E;">
+                                 Local: http://localhost:3000
+                            </div>
+                        </div>
+                        <div class="mock-chatbox">
+                            Make the button bigger and add a subtle glow<span class="mock-cursor"></span>
+                        </div>
+                    </div>
+                    <div class="mock-browser">
+                        <div class="mock-urlbar">
+                            <span class="mock-url-icon">&#8592;</span>
+                            <span class="mock-url-icon">&#8594;</span>
+                            <div class="mock-url-input">localhost:3000</div>
+                            <span class="mock-inspect-icon" title="Inspect">&#9678;</span>
+                        </div>
+                        <div class="mock-page">
+                            <div class="mock-page-h1">Welcome back</div>
+                            <div class="mock-page-p">Your dashboard is ready. 3 projects active, 12 tasks completed this week.</div>
+                            <div class="mock-page-btn">Get started</div>
+                            <div class="mock-page-card">
+                                <div class="mock-page-card-title">Recent activity</div>
+                                <div class="mock-page-card-text">Hero redesign pushed 2m ago</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="features" id="features">
+    <div class="container">
+        <div class="features-header">
+            <h2>Everything in one place</h2>
+            <p>Stop switching between terminal, browser, and design tools.</p>
+        </div>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon fi-chat">💬</div>
+                <h3>Chat input</h3>
+                <p>Real text box with Enter to send. No more pasting prompts into a raw terminal.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon fi-browser">🌐</div>
+                <h3>Browser preview</h3>
+                <p>See localhost side-by-side. Auto-detects dev servers. Desktop, tablet, and phone sizes.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon fi-inspect">🎨</div>
+                <h3>Design inspector</h3>
+                <p>Click elements to inspect. Tweak styles live. Send changes to your agent as instructions.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon fi-sessions">📑</div>
+                <h3>Sessions</h3>
+                <p>Named tabs grouped by project. Switch with Cmd+1-9. Persist across restarts.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon fi-context">🧠</div>
+                <h3>Context aware</h3>
+                <p>Each agent knows about sibling sessions and your tools. Smarter suggestions.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon fi-themes">🎭</div>
+                <h3>10+ themes</h3>
+                <p>Full visual editor. Share themes via URL. Every pixel is customizable.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="steps-section">
+    <div class="container">
+        <div class="features-header">
+            <h2>30 seconds to start</h2>
+        </div>
+        <div class="steps">
+            <div class="step">
+                <div class="step-num">1</div>
+                <h3>Install</h3>
+                <p>One command in any terminal. Installs to Applications.</p>
+            </div>
+            <div class="step">
+                <div class="step-num">2</div>
+                <h3>Launch a session</h3>
+                <p>Click Claude Code, Amp, or Shell. It opens in your project directory.</p>
+            </div>
+            <div class="step">
+                <div class="step-num">3</div>
+                <h3>Build</h3>
+                <p>Type a prompt, see the result in the browser. Inspect and refine.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="cta" id="install">
+    <div class="container">
+        <h2>Try Deck</h2>
+        <p>Paste this into any terminal.</p>
+        <div class="install-cmd" onclick="navigator.clipboard.writeText('curl -sL https://raw.githubusercontent.com/aaronstressfree/deck/main/scripts/install.sh | bash'); this.querySelector('.tag').textContent = 'Copied!'">
+            <span style="color: var(--text-4);">$</span>
+            <code>curl -sL https://raw.githubusercontent.com/aaronstressfree/deck/main/scripts/install.sh | bash</code>
+            <span class="tag">Copy</span>
+        </div>
+        <p class="cta-note">
+            macOS 14+ &middot; <a href="https://claude.ai/download">Claude Code</a> or <a href="https://amp.dev">Amp</a> CLI required<br>
+            Run the same command anytime to update.
+        </p>
+    </div>
+</section>
+
+<footer>
+    <div class="container">
+        <p>Built by Aaron Stevens &middot; <a href="https://github.com/aaronstressfree/deck">GitHub</a> &middot; <a href="https://github.com/aaronstressfree/deck/issues">Feedback</a></p>
+    </div>
+</footer>
+
+</body>
+</html>

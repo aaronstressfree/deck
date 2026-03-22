@@ -59,6 +59,23 @@ struct DesignSpacingSection: View {
             }
             .padding(.top, 4)
         }
+        .onChange(of: designMode.selectedElement?.selector) { _, _ in
+            syncFromElement()
+        }
+        .onAppear { syncFromElement() }
+    }
+
+    private func syncFromElement() {
+        guard let styles = designMode.selectedElement?.computedStyles else { return }
+        if let v = styles["padding-top"] { paddingTop = v }
+        if let v = styles["padding-right"] { paddingRight = v }
+        if let v = styles["padding-bottom"] { paddingBottom = v }
+        if let v = styles["padding-left"] { paddingLeft = v }
+        if let v = styles["margin-top"] { marginTop = v }
+        if let v = styles["margin-right"] { marginRight = v }
+        if let v = styles["margin-bottom"] { marginBottom = v }
+        if let v = styles["margin-left"] { marginLeft = v }
+        if let v = styles["gap"], v != "normal" { gap = v }
     }
 
     private func compactField(_ label: String, value: Binding<String>, onCommit: @escaping () -> Void) -> some View {

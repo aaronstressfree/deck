@@ -31,5 +31,16 @@ struct DesignEffectsSection: View {
                 ))
             }
         }
+        .onChange(of: designMode.selectedElement?.selector) { _, _ in
+            syncFromElement()
+        }
+        .onAppear { syncFromElement() }
+    }
+
+    private func syncFromElement() {
+        guard let styles = designMode.selectedElement?.computedStyles else { return }
+        if let o = styles["opacity"], let val = Double(o) {
+            opacity = val * 100
+        }
     }
 }

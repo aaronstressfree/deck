@@ -54,6 +54,28 @@ struct DesignColorSection: View {
             colorRow(label: "Border", color: $borderColor, hex: $borderHex, property: "border-color")
             colorRow(label: "Accent", color: $accentColor, hex: $accentHex, property: "accent-color")
         }
+        .onChange(of: designMode.selectedElement?.selector) { _, _ in
+            syncFromElement()
+        }
+        .onAppear { syncFromElement() }
+    }
+
+    private func syncFromElement() {
+        guard let styles = designMode.selectedElement?.computedStyles else { return }
+        if let bg = styles["background-color"] { bgHex = cssColorToHex(bg) }
+        if let text = styles["color"] { textHex = cssColorToHex(text) }
+        if let border = styles["border-color"] { borderHex = cssColorToHex(border) }
+    }
+
+    /// Convert CSS color string (rgb/rgba/hex) to hex
+    private func cssColorToHex(_ css: String) -> String {
+        let trimmed = css.trimmingCharacters(in: .whitespaces)
+        if trimmed.hasPrefix("#") { return trimmed }
+        // Parse rgb(r, g, b) or rgba(r, g, b, a)
+        let nums = trimmed.components(separatedBy: CharacterSet.decimalDigits.inverted)
+            .compactMap { Int($0) }
+        guard nums.count >= 3 else { return trimmed }
+        return String(format: "#%02X%02X%02X", min(nums[0], 255), min(nums[1], 255), min(nums[2], 255))
     }
 
     private func colorRow(label: String, color: Binding<Color>, hex: Binding<String>, property: String) -> some View {

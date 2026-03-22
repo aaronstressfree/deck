@@ -24,7 +24,11 @@ struct AppState: Codable {
 
     /// Storage path for app state
     static var storageURL: URL {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            // Fallback to home directory
+            return FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(".deck/state.json")
+        }
         let deckDir = appSupport.appendingPathComponent("Deck", isDirectory: true)
         try? FileManager.default.createDirectory(at: deckDir, withIntermediateDirectories: true)
         return deckDir.appendingPathComponent("state.json")

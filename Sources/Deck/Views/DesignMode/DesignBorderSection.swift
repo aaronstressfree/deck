@@ -78,5 +78,20 @@ struct DesignBorderSection: View {
                 ))
             }
         }
+        .onChange(of: designMode.selectedElement?.selector) { _, _ in
+            syncFromElement()
+        }
+        .onAppear { syncFromElement() }
+    }
+
+    private func syncFromElement() {
+        guard let styles = designMode.selectedElement?.computedStyles else { return }
+        if let w = styles["border-top-width"], let px = Double(w.replacingOccurrences(of: "px", with: "")) {
+            borderWidth = px
+        }
+        if let r = styles["border-radius"], let px = Double(r.replacingOccurrences(of: "px", with: "")) {
+            borderRadius = px
+        }
+        if let s = styles["border-style"] { borderStyle = s }
     }
 }

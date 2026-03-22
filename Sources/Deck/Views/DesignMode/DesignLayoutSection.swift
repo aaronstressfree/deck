@@ -109,5 +109,17 @@ struct DesignLayoutSection: View {
                 ))
             }
         }
+        .onChange(of: designMode.selectedElement?.selector) { _, _ in
+            syncFromElement()
+        }
+        .onAppear { syncFromElement() }
+    }
+
+    private func syncFromElement() {
+        guard let styles = designMode.selectedElement?.computedStyles else { return }
+        if let d = styles["display"] { display = d }
+        if let fd = styles["flex-direction"] { flexDirection = fd }
+        if let jc = styles["justify-content"] { justifyContent = jc }
+        if let ai = styles["align-items"] { alignItems = ai }
     }
 }

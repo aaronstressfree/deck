@@ -47,6 +47,16 @@ struct DesignSizingSection: View {
                 }
             }
         }
+        .onChange(of: designMode.selectedElement?.selector) { _, _ in
+            syncFromElement()
+        }
+        .onAppear { syncFromElement() }
+    }
+
+    private func syncFromElement() {
+        guard let styles = designMode.selectedElement?.computedStyles else { return }
+        if let w = styles["width"] { width = w }
+        if let h = styles["height"] { height = h }
     }
 
     private func commitSize(_ property: String, _ value: String) {

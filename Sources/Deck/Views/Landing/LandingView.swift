@@ -44,6 +44,12 @@ struct LandingView: View {
                     )
                 }
 
+                // Hint about auto-organization
+                Text("Chats auto-organize into projects based on your working directory")
+                    .font(.system(size: 12))
+                    .foregroundStyle(theme.text.quaternary.swiftUIColor)
+                    .padding(.top, 4)
+
                 // Recent sessions — only if they exist
                 if !sessionManager.recentSessions.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {

@@ -1,0 +1,77 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # needed for git rev-list --count
+
+      - name: Set up Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '5.9'
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION="0.1.0"
+          fi
+          BUILD=$(git rev-list --count HEAD)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "build=$BUILD" >> $GITHUB_OUTPUT
+          echo "Building v${VERSION} (build ${BUILD})"
+
+      - name: Build app bundle
+        run: |
+          DECK_VERSION=${{ steps.version.outputs.version }} \
+          DECK_BUILD=${{ steps.version.outputs.build }} \
+          bash scripts/build-app.sh
+
+      - name: Zip app
+        run: |
+          cd .build
+          zip -r Deck.zip Deck.app
+          echo "Zipped: $(du -h Deck.zip | cut -f1)"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Deck.app
+          path: .build/Deck.zip
+
+      - name: Create Release (on tag push)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: .build/Deck.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update latest release (on main push)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          # Delete existing 'latest' release if it exists
+          gh release delete latest --yes 2>/dev/null || true
+          git tag -d latest 2>/dev/null || true
+          git push origin :refs/tags/latest 2>/dev/null || true
+
+          # Create new 'latest' release
+          git tag latest
+          git push origin latest
+          gh release create latest .build/Deck.zip \
+            --title "Latest Build" \
+            --notes "Auto-built from main branch ($(date '+%Y-%m-%d %H:%M')). Build ${{ steps.version.outputs.build }}." \
+            --prerelease
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

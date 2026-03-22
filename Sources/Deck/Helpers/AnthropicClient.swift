@@ -15,6 +15,7 @@ enum AnthropicClient {
     static func complete(system: String, userMessage: String, maxTokens: Int = 300) async throws -> String {
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
+        request.timeoutInterval = 30
         request.setValue(APIKeyStore.apiKey, forHTTPHeaderField: "x-api-key")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
         request.setValue("application/json", forHTTPHeaderField: "content-type")

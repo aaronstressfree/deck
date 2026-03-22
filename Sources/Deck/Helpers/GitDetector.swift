@@ -25,9 +25,14 @@ enum GitDetector {
         }
     }
 
+    /// Cache for git root lookups — avoids spawning a subprocess for the same directory
+    private static var rootCache: [String: String?] = [:]
+
     /// Get the root directory of the git repository containing the given directory.
-    /// Returns nil if the directory is not inside a git repo.
+    /// Returns nil if the directory is not inside a git repo. Results are cached.
     static func rootDirectory(for directory: String) -> String? {
+        if let cached = rootCache[directory] { return cached }
+
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/git")
         task.arguments = ["-C", directory, "rev-parse", "--show-toplevel"]
@@ -39,10 +44,16 @@ enum GitDetector {
         do {
             try task.run()
             task.waitUntilExit()
-            guard task.terminationStatus == 0 else { return nil }
+            guard task.terminationStatus == 0 else {
+                rootCache[directory] = nil
+                return nil
+            }
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let result = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            rootCache[directory] = result
+            return result
         } catch {
+            rootCache[directory] = nil
             return nil
         }
     }
@@ -83,6 +94,44 @@ enum GitDetector {
             return !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         } catch {
             return false
+        }
+    }
+
+    // MARK: - Async wrappers (run git on a background thread)
+
+    /// Async version — runs git on a background thread
+    static func currentBranchAsync(in directory: String) async -> String? {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async {
+                continuation.resume(returning: currentBranch(in: directory))
+            }
+        }
+    }
+
+    /// Async version — runs git on a background thread
+    static func rootDirectoryAsync(for directory: String) async -> String? {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async {
+                continuation.resume(returning: rootDirectory(for: directory))
+            }
+        }
+    }
+
+    /// Async version — runs git on a background thread
+    static func isGitRepoAsync(directory: String) async -> Bool {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async {
+                continuation.resume(returning: isGitRepo(directory: directory))
+            }
+        }
+    }
+
+    /// Async version — runs git on a background thread
+    static func isDirtyAsync(directory: String) async -> Bool {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async {
+                continuation.resume(returning: isDirty(directory: directory))
+            }
         }
     }
 }
