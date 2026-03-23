@@ -390,19 +390,30 @@ final class SessionManager: ObservableObject {
         }
 
         // Reset all sessions — processes died with the old app instance.
-        // Set claudeContinue so Claude/Amp resume their last conversation.
-        // Clear exit codes so they restart fresh when the view creates TerminalBridge.
         for i in sessions.indices {
             sessions[i].isRunning = false
             sessions[i].agentStatus = .idle
             sessions[i].exitCode = nil
-            // Mark for continuation on restart (Claude --continue, Amp --continue)
-            if sessions[i].agentType == .claude || sessions[i].agentType == .amp {
-                sessions[i].claudeContinue = true
+
+            // Validate saved agentSessionId — clear if conversation no longer exists
+            if let sid = sessions[i].agentSessionId, sessions[i].agentType == .claude {
+                if !claudeSessionExists(sid, workingDirectory: sessions[i].workingDirectory) {
+                    sessions[i].agentSessionId = nil
+                }
             }
         }
 
         migrateToProjectFirst()
+    }
+
+    /// Check if a Claude session ID still has a valid conversation on disk.
+    private func claudeSessionExists(_ sessionId: String, workingDirectory: String) -> Bool {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        // Claude stores conversations in ~/.claude/projects/<encoded-path>/<sessionId>.jsonl
+        let encodedPath = workingDirectory.replacingOccurrences(of: "/", with: "-")
+        let projectDir = home.appendingPathComponent(".claude/projects/\(encodedPath)")
+        let conversationFile = projectDir.appendingPathComponent("\(sessionId).jsonl")
+        return FileManager.default.fileExists(atPath: conversationFile.path)
     }
 
     private func migrateToProjectFirst() {
