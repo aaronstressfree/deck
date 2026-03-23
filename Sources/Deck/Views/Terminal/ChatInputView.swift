@@ -113,7 +113,9 @@ struct ChatInputView: View {
                     onSubmit: sendMessage,
                     onHeightChange: { inputHeight = $0 },
                     onImagePaste: handleImagePaste,
-                    focusTrigger: focusTrigger
+                    focusTrigger: focusTrigger,
+                    isChatMode: isChatMode,
+                    isActive: isActiveSession
                 )
                 .frame(height: max(28, min(inputHeight, 100)))
 
@@ -300,6 +302,8 @@ struct ChatTextField: NSViewRepresentable {
     let onHeightChange: (CGFloat) -> Void
     var onImagePaste: ((NSImage, String) -> Void)? = nil
     var focusTrigger: UUID = UUID()
+    var isChatMode: Bool = true
+    var isActive: Bool = false
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -343,6 +347,8 @@ struct ChatTextField: NSViewRepresentable {
         if tv.insertionPointColor != cursorColor { tv.insertionPointColor = cursorColor }
 
         context.coordinator.parent = self
+        tv.isChatModeActive = isChatMode
+        tv.isActiveSession = isActive
 
         // Focus grabs:
         // 1. First time the view has a window — initial focus
@@ -417,25 +423,68 @@ struct ChatTextField: NSViewRepresentable {
 // ⚠️ CLIPBOARD ARCHITECTURE — DO NOT MODIFY WITHOUT TESTING PASTE ⚠️
 //
 // Copy/paste works through the standard macOS responder chain:
-// 1. Edit menu has Paste with action: paste(_:) and target: nil
-// 2. target: nil dispatches through responder chain to first responder
-// 3. DeckChatTextView.paste(_:) handles text and images
-// 4. No custom event monitors or notifications intercept clipboard
+// ⚠️ CLIPBOARD ARCHITECTURE — DO NOT BREAK ⚠️
 //
-// The viewDidMoveToWindow observer below is a CRITICAL fallback:
-// When the text view temporarily loses first responder (e.g., clicking
-// sidebar then Cmd+V), the notification routes paste back to this view.
+// Edit menu Paste/Copy/Cut/SelectAll use target:nil → responder chain.
+// DeckChatTextView must be first responder for these to work.
 //
-// If paste stops working after code changes, check:
-// - Is DeckChatTextView still first responder in chat mode?
-// - Does the Edit menu still have paste: with target: nil?
-// - Is viewDidMoveToWindow still registering the observer?
-// - Is the auto-focus code in updateNSView stealing focus too aggressively?
+// A local event monitor intercepts keyDown events and grabs focus
+// for the chat input when it detects the text view isn't first responder.
+// This ensures Cmd+V/C/X/A always route to the chat input in chat mode,
+// even after clicking sidebar, buttons, or other UI elements.
 
 class DeckChatTextView: NSTextView {
     var onImagePaste: ((NSImage, String) -> Void)?
+    var isChatModeActive = true   // Set by ChatTextField.updateNSView
+    var isActiveSession = false    // Only grab focus for the active session
+    private var keyMonitor: Any?
 
     override var acceptsFirstResponder: Bool { true }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+
+        // Remove old monitor
+        if let monitor = keyMonitor {
+            NSEvent.removeMonitor(monitor)
+            keyMonitor = nil
+        }
+
+        guard let window else { return }
+
+        // Monitor key events — if the chat text view should have focus
+        // (it's visible and in a window) but doesn't, grab it.
+        // This ensures Cmd+V/C/X/A always work in chat mode.
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self,
+                  self.isChatModeActive,
+                  self.isActiveSession,
+                  let window = self.window,
+                  window.isKeyWindow else { return event }
+            let fr = window.firstResponder
+
+            // Already focused
+            if fr === self { return event }
+
+            // Don't steal from other NSTextViews (URL bar field editor, rename, etc.)
+            if let frTextView = fr as? NSTextView, frTextView !== self { return event }
+
+            // Grab focus and re-send the event
+            if self.superview != nil {
+                window.makeFirstResponder(self)
+                self.keyDown(with: event)
+                return nil
+            }
+
+            return event
+        }
+    }
+
+    deinit {
+        if let monitor = keyMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+    }
 
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
