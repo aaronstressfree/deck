@@ -114,6 +114,7 @@ struct TerminalContainerView: View {
             controller: controller,
             isChatMode: isChatMode,
             scrollbackPath: session.scrollbackPath,
+            agentSessionId: session.agentSessionId,
             terminalTitle: $terminalTitle,
             agentStatus: $session.agentStatus,
             isRunning: $session.isRunning,

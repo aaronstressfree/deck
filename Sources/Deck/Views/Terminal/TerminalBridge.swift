@@ -166,6 +166,7 @@ struct TerminalBridge: NSViewRepresentable {
     let controller: TerminalController
     let isChatMode: Bool
     var scrollbackPath: String? = nil
+    var agentSessionId: String? = nil
 
     @Binding var terminalTitle: String
     @Binding var agentStatus: AgentStatus
@@ -246,7 +247,7 @@ struct TerminalBridge: NSViewRepresentable {
         guard !context.coordinator.hasStarted else { return }
         context.coordinator.hasStarted = true
         let cmd = agentType.command
-        let args = agentType.defaultArguments
+        let args = agentType.resumeArguments(sessionId: agentSessionId)
 
         // Build process environment — ensure critical vars are ALWAYS set
         // even when Deck is launched from Dock with a minimal parent environment
