@@ -204,6 +204,7 @@ struct TerminalBridge: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
     func makeNSView(context: Context) -> LocalProcessTerminalView {
+        // makeNSView creates terminal and starts process
         let tv = LocalProcessTerminalView(frame: .zero)
         tv.processDelegate = context.coordinator
         applyTheme(to: tv)
@@ -248,6 +249,7 @@ struct TerminalBridge: NSViewRepresentable {
         context.coordinator.hasStarted = true
         let cmd = agentType.command
         let args = agentType.resumeArguments(sessionId: agentSessionId)
+
 
         // Build process environment — ensure critical vars are ALWAYS set
         // even when Deck is launched from Dock with a minimal parent environment
