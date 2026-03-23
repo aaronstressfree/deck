@@ -35,6 +35,9 @@ final class TerminalController: ObservableObject {
 
     /// Save the full visible terminal buffer to a file for session persistence.
     func saveScrollback(to path: String) {
+        // Scrollback is saved as plain text for reference.
+        // Colors can't be reliably reconstructed from SwiftTerm's buffer attributes.
+        // For Claude/Amp, --resume handles conversation continuity with fresh formatting.
         let content = readFullVisibleBuffer()
         guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         try? content.write(toFile: path, atomically: true, encoding: .utf8)
@@ -249,11 +252,17 @@ struct TerminalBridge: NSViewRepresentable {
                         currentDirectory: workingDirectory)
         DispatchQueue.main.async { self.isRunning = true; self.agentStatus = .idle }
 
-        // Clean up saved scrollback file (scrollback restore via feed() produces
-        // garbled output because the raw buffer contains escape sequences that don't
-        // re-render correctly. For Claude Code, --continue resumes the conversation
-        // which is more valuable than raw scrollback.)
+        // For Claude/Amp: --resume handles conversation continuity, no scrollback needed.
+        // For shell: show previous output as dim text above the new prompt.
         if let scrollbackPath = scrollbackPath {
+            if agentType == .shell,
+               let saved = try? String(contentsOfFile: scrollbackPath, encoding: .utf8),
+               !saved.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                let terminal = tv.getTerminal()
+                // Dim the restored text so it's visually distinct from new output
+                let dimmed = "\u{1b}[2m" + saved + "\u{1b}[0m\n"
+                terminal.feed(byteArray: Array(dimmed.utf8))
+            }
             try? FileManager.default.removeItem(atPath: scrollbackPath)
         }
     }
