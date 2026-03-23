@@ -248,7 +248,7 @@ struct TerminalBridge: NSViewRepresentable {
         guard !context.coordinator.hasStarted else { return }
         context.coordinator.hasStarted = true
         let cmd = agentType.command
-        let args = agentType.arguments(continueSession: continueSession, resumeSessionId: agentSessionId)
+        let args = agentType.defaultArguments
 
         // Build process environment — ensure critical vars are ALWAYS set
         // even when Deck is launched from Dock with a minimal parent environment

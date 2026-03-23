@@ -40,28 +40,41 @@ enum AgentType: String, Codable, Hashable, Sendable, CaseIterable {
     /// Arguments to pass when spawning.
     /// If `resumeSessionId` is provided, resumes that specific conversation.
     /// Falls back to fresh start if resume fails.
-    func arguments(continueSession: Bool = false, resumeSessionId: String? = nil) -> [String] {
+    /// Arguments to pass when spawning. Fresh start every time —
+    /// no --resume or session persistence. The working directory + CLAUDE.md
+    /// provide all the context needed.
+    var defaultArguments: [String] {
         switch self {
         case .claude:
-            // Export color env vars BEFORE running claude so they're in the process env
-            let exports = "export COLORTERM=truecolor; export FORCE_COLOR=3; export TERM=xterm-256color; export TERM_PROGRAM=ghostty; export CLICOLOR=1;"
-            if let id = resumeSessionId {
-                return ["-l", "-i", "-c", "\(exports) claude --resume '\(id)' || claude || { echo '\\n⚠ claude not found'; exec zsh -l; }"]
-            }
-            return ["-l", "-i", "-c", "\(exports) claude || { echo '\\n⚠ claude not found. Install: npm install -g @anthropic-ai/claude-code'; exec zsh -l; }"]
+            return ["-l", "-i", "-c", "claude || { echo '\\n⚠ claude not found. Install: npm install -g @anthropic-ai/claude-code'; exec zsh -l; }"]
         case .amp:
-            if let id = resumeSessionId {
-                // Amp uses 'amp threads continue <threadId>'
-                return ["-l", "-i", "-c", "amp threads continue '\(id)' || amp || { echo '\\n⚠ amp not found'; exec zsh -l; }"]
-            }
             return ["-l", "-i", "-c", "amp || { echo '\\n⚠ amp not found. Install: npm install -g @anthropic-ai/amp'; exec zsh -l; }"]
         case .shell:
             return ["--login", "-i"]
         }
     }
 
-    /// Default arguments (no session continuation)
-    var defaultArguments: [String] { arguments() }
+    // MARK: - Session resume (disabled — causes gray logo on Dock launch)
+    // To re-enable: use arguments(resumeSessionId:) instead of defaultArguments in TerminalBridge.startProcess
+    // and uncomment the session ID capture in StatusPoller.tick()
+
+    /// Arguments with session resume support. Requires agentSessionId from StatusPoller.
+    func resumeArguments(sessionId: String?) -> [String] {
+        switch self {
+        case .claude:
+            if let id = sessionId {
+                return ["-l", "-i", "-c", "claude --resume '\(id)' || claude || { echo '\\n⚠ claude not found'; exec zsh -l; }"]
+            }
+            return defaultArguments
+        case .amp:
+            if let id = sessionId {
+                return ["-l", "-i", "-c", "amp threads continue '\(id)' || amp || { echo '\\n⚠ amp not found'; exec zsh -l; }"]
+            }
+            return defaultArguments
+        case .shell:
+            return defaultArguments
+        }
+    }
 
     /// Whether the CLI is available on this system
     var isAvailable: Bool {
