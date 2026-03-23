@@ -197,6 +197,17 @@ Sources/Deck/
 └── DeckApp.swift    # App entry point, window configuration
 ```
 
+### Session resume
+
+Sessions resume automatically when you quit and reopen Deck:
+
+1. **StatusPoller** captures each Claude/Amp session's conversation ID while running
+2. IDs are saved to `state.json` on every capture
+3. On relaunch, `claude --resume '<id>'` resumes the specific conversation
+4. Falls back to `claude --continue` (most recent in directory), then fresh start
+
+**True color support:** Claude Code checks `TERM_PROGRAM` to decide color depth. Deck sets `TERM_PROGRAM=ghostty` in the spawned process environment, which tells Claude Code to use 24-bit true color (orange logo, syntax highlighting). Without this, Dock-launched apps get gray/monochrome output because `TERM_PROGRAM` is unset in launchd's minimal environment.
+
 ### Performance design
 
 - **Terminal buffer scanning** uses preallocated character buffers and skips unchanged sessions
