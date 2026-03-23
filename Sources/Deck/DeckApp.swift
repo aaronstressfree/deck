@@ -23,16 +23,56 @@ class DeckAppDelegate: NSObject, NSApplicationDelegate {
             if let controller = sm.terminalControllers[session.id] {
                 controller.saveScrollback(to: path)
                 sm.sessions[i].scrollbackPath = path
-            }
 
-            // Capture Claude/Amp session ID for --resume on relaunch
-            if session.agentType == .claude {
-                if let sessionId = findClaudeSessionId(for: session.workingDirectory) {
-                    sm.sessions[i].agentSessionId = sessionId
+                // Save conversation summary into intentText for Claude/Amp sessions.
+                // DeckContext writes intentText to CLAUDE.md, so Claude reads it
+                // as system context on startup — no messages sent, it just "knows."
+                if session.agentType != .shell {
+                    let buffer = controller.readFullVisibleBuffer()
+                    let summary = DeckAppDelegate.extractConversationSummary(from: buffer)
+                    if !summary.isEmpty {
+                        // Prepend to existing intent text, don't overwrite
+                        let existing = sm.sessions[i].intentText ?? ""
+                        if existing.isEmpty {
+                            sm.sessions[i].intentText = summary
+                        } else if !existing.contains("Recent prompts:") {
+                            sm.sessions[i].intentText = existing + "\n\n" + summary
+                        }
+                        // Also store separately for reference
+                        sm.sessions[i].lastConversationSummary = summary
+                    }
                 }
             }
         }
         sm.saveStatePublic()
+    }
+
+    /// Extract a brief conversation summary from terminal buffer.
+    /// Captures user prompts (lines starting with ❯ or >) and key output lines.
+    static func extractConversationSummary(from buffer: String) -> String {
+        let lines = buffer.components(separatedBy: "\n")
+        var prompts: [String] = []
+
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            // User prompts
+            if trimmed.hasPrefix("❯ ") || trimmed.hasPrefix("> ") {
+                let prompt = trimmed
+                    .replacingOccurrences(of: "^[❯>]\\s+", with: "", options: .regularExpression)
+                    .trimmingCharacters(in: .whitespaces)
+                if !prompt.isEmpty && prompt.count > 2 {
+                    prompts.append(prompt)
+                }
+            }
+        }
+
+        // Keep last 3 prompts as context
+        let recent = prompts.suffix(3)
+        guard !recent.isEmpty else { return "" }
+
+        return "Recent prompts from previous session:\n" +
+            recent.map { "- \($0)" }.joined(separator: "\n") +
+            "\nPick up where we left off if relevant."
     }
 
     /// Find the most recent Claude Code session ID for a given working directory.

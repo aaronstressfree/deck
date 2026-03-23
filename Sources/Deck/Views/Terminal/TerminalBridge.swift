@@ -165,9 +165,7 @@ struct TerminalBridge: NSViewRepresentable {
     }
     let controller: TerminalController
     let isChatMode: Bool
-    var continueSession: Bool = false
     var scrollbackPath: String? = nil
-    var agentSessionId: String? = nil
 
     @Binding var terminalTitle: String
     @Binding var agentStatus: AgentStatus
@@ -271,9 +269,10 @@ struct TerminalBridge: NSViewRepresentable {
                         currentDirectory: workingDirectory)
         DispatchQueue.main.async { self.isRunning = true; self.agentStatus = .idle }
 
-        // Note: Claude Code needs COLORTERM=truecolor in the env to render
-        // its orange logo. This is set via launchctl setenv in DeckApp so it
-        // persists for Dock launches. The env vars above are also set as backup.
+        // Conversation context is handled silently:
+        // 1. session.intentText carries the last conversation summary
+        // 2. DeckContext writes it to CLAUDE.md so Claude reads it on startup
+        // No auto-sent messages — Claude just "knows" from its context.
 
         // For Claude/Amp: --resume handles conversation continuity, no scrollback needed.
         // For shell: show previous output as dim text above the new prompt.

@@ -25,6 +25,7 @@ struct Session: Identifiable, Codable, Hashable {
     let createdAt: Date
 
     var scrollbackPath: String?      // Path to saved scrollback data
+    var lastConversationSummary: String?  // Brief summary of last session, auto-sent on relaunch
     var intentText: String?          // Pinned intent for this session
 
     var checkpoints: [Checkpoint]
