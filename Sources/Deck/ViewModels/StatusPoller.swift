@@ -20,23 +20,22 @@ final class StatusPoller {
         self.sessionManager = sessionManager
     }
 
-    private var pollTask: Task<Void, Never>?
-
-    deinit {
-        pollTask?.cancel()
-    }
+    deinit {}
 
     func start() {
-        pollTask = Task { @MainActor [weak self] in
-            while !Task.isCancelled {
-                self?.tick()
-                try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-            }
+        scheduleTick()
+    }
+
+    private func scheduleTick() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            guard let self else { return }
+            self.tick()
+            self.scheduleTick() // Reschedule
         }
     }
 
     func stop() {
-        pollTask?.cancel()
+        // DispatchQueue-based polling stops when weak self becomes nil
     }
 
     func markContextDirty() {
