@@ -11,6 +11,8 @@ final class StatusPoller {
     private var autoOpenedURLs: [UUID: Set<String>] = [:]
     /// Cache last-seen terminal title per session to skip redundant buffer scans
     private var lastSeenTitle: [UUID: String] = [:]
+    /// Timestamp of when this poller started — only use session files newer than this
+    private let startedAt = Date()
 
     private weak var sessionManager: SessionManager?
 
@@ -52,20 +54,27 @@ final class StatusPoller {
         checkURLQueue(sm: sm)
 
         // Capture agent session/thread IDs for resume on relaunch
+        var capturedNewId = false
         for i in sm.sessions.indices {
             guard sm.sessions[i].agentSessionId == nil else { continue }
             switch sm.sessions[i].agentType {
             case .claude:
                 if let sid = findClaudeSessionId(for: sm.sessions[i].workingDirectory) {
                     sm.sessions[i].agentSessionId = sid
+                    capturedNewId = true
                 }
             case .amp:
                 if let tid = findAmpThreadId(for: sm.sessions[i].workingDirectory) {
                     sm.sessions[i].agentSessionId = tid
+                    capturedNewId = true
                 }
             case .shell:
                 break
             }
+        }
+        // Persist captured IDs so they survive a crash/force-quit
+        if capturedNewId {
+            sm.saveStatePublic()
         }
 
         // Update agent statuses
@@ -168,51 +177,48 @@ final class StatusPoller {
 
     // MARK: - Agent Session ID Capture
 
-    /// Find the most recent Claude Code session ID for a working directory.
-    /// Tries multiple strategies:
-    /// 1. Exact cwd match in ~/.claude/sessions/
-    /// 2. Parent directory match (Claude might cd into a subdirectory)
-    /// 3. Most recent session in the project's git root
+    /// Find the best Claude Code session ID for a working directory.
+    /// Two-phase strategy:
+    /// 1. Check live session files (from THIS launch) — active conversation
+    /// 2. Fall back to most recent conversation FILE in the project dir — resumable history
     private func findClaudeSessionId(for workingDirectory: String) -> String? {
-        let sessionsDir = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".claude/sessions")
-        guard let files = try? FileManager.default.contentsOfDirectory(
-            at: sessionsDir,
-            includingPropertiesForKeys: [.contentModificationDateKey]
-        ) else { return nil }
+        let home = FileManager.default.homeDirectoryForCurrentUser
 
-        // Parse all session files once
-        struct SessionEntry {
-            let sessionId: String
-            let cwd: String
-            let date: Date
-        }
-
-        var entries: [SessionEntry] = []
-        for file in files where file.pathExtension == "json" {
-            guard let data = try? Data(contentsOf: file),
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let cwd = json["cwd"] as? String,
-                  let sessionId = json["sessionId"] as? String else { continue }
-            let date = (try? file.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
-            entries.append(SessionEntry(sessionId: sessionId, cwd: cwd, date: date))
-        }
-
-        // Strategy 1: Exact cwd match (most recent)
-        if let match = entries.filter({ $0.cwd == workingDirectory }).max(by: { $0.date < $1.date }) {
-            return match.sessionId
-        }
-
-        // Strategy 2: Git root match — Claude might have cd'd into a subdirectory
-        if let gitRoot = GitDetector.rootDirectory(for: workingDirectory) {
-            if let match = entries.filter({ $0.cwd.hasPrefix(gitRoot) }).max(by: { $0.date < $1.date }) {
-                return match.sessionId
+        // Phase 1: Live session files from this launch
+        let sessionsDir = home.appendingPathComponent(".claude/sessions")
+        if let files = try? FileManager.default.contentsOfDirectory(at: sessionsDir, includingPropertiesForKeys: [.contentModificationDateKey]) {
+            var best: (id: String, date: Date)?
+            for file in files where file.pathExtension == "json" {
+                guard let data = try? Data(contentsOf: file),
+                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let cwd = json["cwd"] as? String,
+                      let sessionId = json["sessionId"] as? String else { continue }
+                let date = (try? file.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                // Only from this launch
+                guard date >= startedAt.addingTimeInterval(-5) else { continue }
+                if cwd == workingDirectory {
+                    if best == nil || date > best!.date { best = (sessionId, date) }
+                }
             }
+            if let match = best { return match.id }
         }
 
-        // Strategy 3: Working directory is a parent of the session's cwd
-        if let match = entries.filter({ workingDirectory.hasPrefix($0.cwd) || $0.cwd.hasPrefix(workingDirectory) }).max(by: { $0.date < $1.date }) {
-            return match.sessionId
+        // Phase 2: Most recent conversation file in the project directory
+        // These persist across Claude restarts and are the real resumable history
+        let encodedPath = workingDirectory.replacingOccurrences(of: "/", with: "-")
+        let projectDir = home.appendingPathComponent(".claude/projects/\(encodedPath)")
+        if let files = try? FileManager.default.contentsOfDirectory(at: projectDir, includingPropertiesForKeys: [.contentModificationDateKey]) {
+            var best: (id: String, date: Date)?
+            for file in files where file.pathExtension == "jsonl" {
+                let sessionId = file.deletingPathExtension().lastPathComponent
+                // Validate it looks like a UUID
+                guard UUID(uuidString: sessionId) != nil else { continue }
+                let date = (try? file.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                if best == nil || date > best!.date {
+                    best = (sessionId, date)
+                }
+            }
+            if let match = best { return match.id }
         }
 
         return nil

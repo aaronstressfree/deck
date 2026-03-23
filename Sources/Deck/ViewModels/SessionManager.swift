@@ -407,13 +407,30 @@ final class SessionManager: ObservableObject {
     }
 
     /// Check if a Claude session ID still has a valid conversation on disk.
+    /// Checks both the project conversation file AND the sessions directory.
     private func claudeSessionExists(_ sessionId: String, workingDirectory: String) -> Bool {
         let home = FileManager.default.homeDirectoryForCurrentUser
-        // Claude stores conversations in ~/.claude/projects/<encoded-path>/<sessionId>.jsonl
+
+        // Check 1: conversation file in projects dir
         let encodedPath = workingDirectory.replacingOccurrences(of: "/", with: "-")
         let projectDir = home.appendingPathComponent(".claude/projects/\(encodedPath)")
         let conversationFile = projectDir.appendingPathComponent("\(sessionId).jsonl")
-        return FileManager.default.fileExists(atPath: conversationFile.path)
+        if FileManager.default.fileExists(atPath: conversationFile.path) { return true }
+
+        // Check 2: any session file in ~/.claude/sessions/ references this sessionId
+        let sessionsDir = home.appendingPathComponent(".claude/sessions")
+        if let files = try? FileManager.default.contentsOfDirectory(at: sessionsDir, includingPropertiesForKeys: nil) {
+            for file in files where file.pathExtension == "json" {
+                if let data = try? Data(contentsOf: file),
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let sid = json["sessionId"] as? String,
+                   sid == sessionId {
+                    return true
+                }
+            }
+        }
+
+        return false
     }
 
     private func migrateToProjectFirst() {
