@@ -4,10 +4,10 @@ import Foundation
 /// Extracted from SessionManager for single-responsibility.
 @MainActor
 final class StatusPoller {
-    private var timer: Timer?
     private var urlDetectionCounter = 0
     private var contextRefreshCounter = 0
     private var contextDirty = false
+    private var summaryCounter = 0
     private var autoOpenedURLs: [UUID: Set<String>] = [:]
     /// Cache last-seen terminal title per session to skip redundant buffer scans
     private var lastSeenTitle: [UUID: String] = [:]
@@ -20,21 +20,23 @@ final class StatusPoller {
         self.sessionManager = sessionManager
     }
 
+    private var pollTask: Task<Void, Never>?
+
     deinit {
-        timer?.invalidate()
+        pollTask?.cancel()
     }
 
     func start() {
-        timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+        pollTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
                 self?.tick()
+                try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
             }
         }
     }
 
     func stop() {
-        timer?.invalidate()
-        timer = nil
+        pollTask?.cancel()
     }
 
     func markContextDirty() {
@@ -138,6 +140,68 @@ final class StatusPoller {
                 DeckContext.refreshAll(sessions: sessions, groups: groups, globalInstructions: instructions)
             }
         }
+
+        // Save conversation summaries every ~30 seconds for session context persistence.
+        // This ensures intentText has recent prompts even if the app is force-quit.
+        summaryCounter += 1
+        // Summary save removed from here — handled in TerminalContainerView
+        if summaryCounter >= 15 {
+            summaryCounter = 0
+            saveConversationSummaries(sm: sm)
+        }
+    }
+
+    // MARK: - Conversation Summary
+
+    private func saveConversationSummaries(sm: SessionManager) {
+        var changed = false
+        for i in sm.sessions.indices {
+            guard sm.sessions[i].agentType != .shell else { continue }
+            guard let controller = sm.terminalControllers[sm.sessions[i].id] else { continue }
+
+            let buffer = controller.readFullVisibleBuffer()
+            let summary = Self.extractSummary(from: buffer)
+            guard !summary.isEmpty else { continue }
+
+            // Only update if summary changed
+            if sm.sessions[i].lastConversationSummary != summary {
+                sm.sessions[i].lastConversationSummary = summary
+                // Set as intentText if user hasn't written their own
+                let existing = sm.sessions[i].intentText ?? ""
+                if existing.isEmpty || existing.hasPrefix("Recent prompts") {
+                    sm.sessions[i].intentText = summary
+                    changed = true
+                }
+            }
+        }
+        if changed {
+            sm.saveStatePublic()
+        }
+    }
+
+    /// Extract recent user prompts from terminal buffer for session context
+    static func extractSummary(from buffer: String) -> String {
+        let lines = buffer.components(separatedBy: "\n")
+        var prompts: [String] = []
+
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("❯ ") || trimmed.hasPrefix("> ") || trimmed.hasPrefix("› ") {
+                let prompt = trimmed
+                    .replacingOccurrences(of: "^[❯>›]\\s+", with: "", options: .regularExpression)
+                    .trimmingCharacters(in: .whitespaces)
+                if !prompt.isEmpty && prompt.count > 2 {
+                    prompts.append(prompt)
+                }
+            }
+        }
+
+        let recent = prompts.suffix(3)
+        guard !recent.isEmpty else { return "" }
+
+        return "Recent prompts from previous session:\n" +
+            recent.map { "- \($0)" }.joined(separator: "\n") +
+            "\nPick up where we left off if relevant."
     }
 
     // MARK: - URL Queue

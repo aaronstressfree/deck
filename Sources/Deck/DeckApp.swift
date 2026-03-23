@@ -24,24 +24,8 @@ class DeckAppDelegate: NSObject, NSApplicationDelegate {
                 controller.saveScrollback(to: path)
                 sm.sessions[i].scrollbackPath = path
 
-                // Save conversation summary into intentText for Claude/Amp sessions.
-                // DeckContext writes intentText to CLAUDE.md, so Claude reads it
-                // as system context on startup — no messages sent, it just "knows."
-                if session.agentType != .shell {
-                    let buffer = controller.readFullVisibleBuffer()
-                    let summary = DeckAppDelegate.extractConversationSummary(from: buffer)
-                    if !summary.isEmpty {
-                        // Prepend to existing intent text, don't overwrite
-                        let existing = sm.sessions[i].intentText ?? ""
-                        if existing.isEmpty {
-                            sm.sessions[i].intentText = summary
-                        } else if !existing.contains("Recent prompts:") {
-                            sm.sessions[i].intentText = existing + "\n\n" + summary
-                        }
-                        // Also store separately for reference
-                        sm.sessions[i].lastConversationSummary = summary
-                    }
-                }
+                // Conversation summary is saved periodically by StatusPoller,
+                // not on quit (applicationWillTerminate is unreliable in SwiftUI).
             }
         }
         sm.saveStatePublic()
