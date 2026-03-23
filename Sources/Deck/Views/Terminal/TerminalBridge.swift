@@ -271,6 +271,36 @@ struct TerminalBridge: NSViewRepresentable {
                         currentDirectory: workingDirectory)
         DispatchQueue.main.async { self.isRunning = true; self.agentStatus = .idle }
 
+        // Color refresh: after the agent has time to render its startup output,
+        // force a full redraw via installColors. This ensures true color cells
+        // (like Claude Code's orange logo) render correctly regardless of when
+        // the view got its frame or what env the app was launched with.
+        let themeColors = self.theme.terminal
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak tv] in
+            guard let tv else { return }
+            tv.nativeBackgroundColor = themeColors.background.nsColor
+            tv.nativeForegroundColor = themeColors.foreground.nsColor
+            let a = themeColors.ansi
+            tv.installColors([
+                SwiftTerm.Color(red: UInt16(a.black.red * 65535), green: UInt16(a.black.green * 65535), blue: UInt16(a.black.blue * 65535)),
+                SwiftTerm.Color(red: UInt16(a.red.red * 65535), green: UInt16(a.red.green * 65535), blue: UInt16(a.red.blue * 65535)),
+                SwiftTerm.Color(red: UInt16(a.green.red * 65535), green: UInt16(a.green.green * 65535), blue: UInt16(a.green.blue * 65535)),
+                SwiftTerm.Color(red: UInt16(a.yellow.red * 65535), green: UInt16(a.yellow.green * 65535), blue: UInt16(a.yellow.blue * 65535)),
+                SwiftTerm.Color(red: UInt16(a.blue.red * 65535), green: UInt16(a.blue.green * 65535), blue: UInt16(a.blue.blue * 65535)),
+                SwiftTerm.Color(red: UInt16(a.magenta.red * 65535), green: UInt16(a.magenta.green * 65535), blue: UInt16(a.magenta.blue * 65535)),
+                SwiftTerm.Color(red: UInt16(a.cyan.red * 65535), green: UInt16(a.cyan.green * 65535), blue: UInt16(a.cyan.blue * 65535)),
+                SwiftTerm.Color(red: UInt16(a.white.red * 65535), green: UInt16(a.white.green * 65535), blue: UInt16(a.white.blue * 65535)),
+                SwiftTerm.Color(red: UInt16(a.brightBlack.red * 65535), green: UInt16(a.brightBlack.green * 65535), blue: UInt16(a.brightBlack.blue * 65535)),
+                SwiftTerm.Color(red: UInt16(a.brightRed.red * 65535), green: UInt16(a.brightRed.green * 65535), blue: UInt16(a.brightRed.blue * 65535)),
+                SwiftTerm.Color(red: UInt16(a.brightGreen.red * 65535), green: UInt16(a.brightGreen.green * 65535), blue: UInt16(a.brightGreen.blue * 65535)),
+                SwiftTerm.Color(red: UInt16(a.brightYellow.red * 65535), green: UInt16(a.brightYellow.green * 65535), blue: UInt16(a.brightYellow.blue * 65535)),
+                SwiftTerm.Color(red: UInt16(a.brightBlue.red * 65535), green: UInt16(a.brightBlue.green * 65535), blue: UInt16(a.brightBlue.blue * 65535)),
+                SwiftTerm.Color(red: UInt16(a.brightMagenta.red * 65535), green: UInt16(a.brightMagenta.green * 65535), blue: UInt16(a.brightMagenta.blue * 65535)),
+                SwiftTerm.Color(red: UInt16(a.brightCyan.red * 65535), green: UInt16(a.brightCyan.green * 65535), blue: UInt16(a.brightCyan.blue * 65535)),
+                SwiftTerm.Color(red: UInt16(a.brightWhite.red * 65535), green: UInt16(a.brightWhite.green * 65535), blue: UInt16(a.brightWhite.blue * 65535)),
+            ])
+        }
+
         // For Claude/Amp: --resume handles conversation continuity, no scrollback needed.
         // For shell: show previous output as dim text above the new prompt.
         if let scrollbackPath = scrollbackPath {
