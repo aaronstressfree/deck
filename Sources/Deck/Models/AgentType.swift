@@ -40,14 +40,11 @@ enum AgentType: String, Codable, Hashable, Sendable, CaseIterable {
     /// Arguments to pass when spawning.
     /// If `resumeSessionId` is provided, resumes that specific conversation.
     /// Falls back to fresh start if resume fails.
-    /// Arguments to pass when spawning.
-    /// Claude uses --continue to resume the most recent conversation in the working directory.
-    /// Amp uses the default (fresh start — amp's resume is handled differently).
+    /// Arguments for a fresh start (new chat — no resume).
     var defaultArguments: [String] {
         switch self {
         case .claude:
-            // --continue picks the most recent session in the current directory automatically
-            return ["-l", "-i", "-c", "claude --continue || claude || { echo '\\n⚠ claude not found. Install: npm install -g @anthropic-ai/claude-code'; exec zsh -l; }"]
+            return ["-l", "-i", "-c", "claude || { echo '\\n⚠ claude not found. Install: npm install -g @anthropic-ai/claude-code'; exec zsh -l; }"]
         case .amp:
             return ["-l", "-i", "-c", "amp || { echo '\\n⚠ amp not found. Install: npm install -g @anthropic-ai/amp'; exec zsh -l; }"]
         case .shell:

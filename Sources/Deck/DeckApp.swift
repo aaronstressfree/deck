@@ -32,33 +32,6 @@ class DeckAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Extract a brief conversation summary from terminal buffer.
-    /// Captures user prompts (lines starting with ❯ or >) and key output lines.
-    static func extractConversationSummary(from buffer: String) -> String {
-        let lines = buffer.components(separatedBy: "\n")
-        var prompts: [String] = []
-
-        for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            // User prompts
-            if trimmed.hasPrefix("❯ ") || trimmed.hasPrefix("> ") {
-                let prompt = trimmed
-                    .replacingOccurrences(of: "^[❯>]\\s+", with: "", options: .regularExpression)
-                    .trimmingCharacters(in: .whitespaces)
-                if !prompt.isEmpty && prompt.count > 2 {
-                    prompts.append(prompt)
-                }
-            }
-        }
-
-        // Keep last 3 prompts as context
-        let recent = prompts.suffix(3)
-        guard !recent.isEmpty else { return "" }
-
-        return "Recent prompts from previous session:\n" +
-            recent.map { "- \($0)" }.joined(separator: "\n") +
-            "\nPick up where we left off if relevant."
-    }
-
     /// Find the most recent Claude Code session ID for a given working directory.
     private func findClaudeSessionId(for workingDirectory: String) -> String? {
         let sessionsDir = FileManager.default.homeDirectoryForCurrentUser

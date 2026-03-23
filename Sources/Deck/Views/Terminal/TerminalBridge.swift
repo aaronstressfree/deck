@@ -273,11 +273,6 @@ struct TerminalBridge: NSViewRepresentable {
                         currentDirectory: workingDirectory)
         DispatchQueue.main.async { self.isRunning = true; self.agentStatus = .idle }
 
-        // Conversation context is handled silently:
-        // 1. session.intentText carries the last conversation summary
-        // 2. DeckContext writes it to CLAUDE.md so Claude reads it on startup
-        // No auto-sent messages — Claude just "knows" from its context.
-
         // For Claude/Amp: --resume handles conversation continuity, no scrollback needed.
         // For shell: show previous output as dim text above the new prompt.
         if let scrollbackPath = scrollbackPath {

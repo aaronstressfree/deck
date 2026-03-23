@@ -140,25 +140,6 @@ struct TerminalContainerView: View {
                 }
             }
         }
-        // Periodically save conversation summary for session context persistence
-        .task(id: session.id) {
-            guard session.agentType != .shell else { return }
-            // Wait for session to start and produce output
-            try? await Task.sleep(nanoseconds: 30_000_000_000) // 30 seconds
-            while !Task.isCancelled {
-                let buffer = controller.readFullVisibleBuffer()
-                let summary = StatusPoller.extractSummary(from: buffer)
-                if !summary.isEmpty && session.lastConversationSummary != summary {
-                    session.lastConversationSummary = summary
-                    let existing = session.intentText ?? ""
-                    if existing.isEmpty || existing.hasPrefix("Recent prompts") {
-                        session.intentText = summary
-                    }
-                    sessionManager.saveStatePublic()
-                }
-                try? await Task.sleep(nanoseconds: 60_000_000_000) // Every 60 seconds
-            }
-        }
     }
 
     // MARK: - Utility bar (workspace toggles)
