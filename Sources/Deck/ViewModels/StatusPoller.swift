@@ -51,12 +51,20 @@ final class StatusPoller {
         // Check URL queue from BROWSER handler script
         checkURLQueue(sm: sm)
 
-        // Capture Claude session IDs even for not-yet-running sessions
+        // Capture agent session/thread IDs for resume on relaunch
         for i in sm.sessions.indices {
-            if sm.sessions[i].agentType == .claude && sm.sessions[i].agentSessionId == nil {
+            guard sm.sessions[i].agentSessionId == nil else { continue }
+            switch sm.sessions[i].agentType {
+            case .claude:
                 if let sid = findClaudeSessionId(for: sm.sessions[i].workingDirectory) {
                     sm.sessions[i].agentSessionId = sid
                 }
+            case .amp:
+                if let tid = findAmpThreadId(for: sm.sessions[i].workingDirectory) {
+                    sm.sessions[i].agentSessionId = tid
+                }
+            case .shell:
+                break
             }
         }
 
@@ -158,9 +166,13 @@ final class StatusPoller {
         sm.openURLInBrowser(url, sessionIndex: i)
     }
 
-    // MARK: - Claude Session ID Capture
+    // MARK: - Agent Session ID Capture
 
-    /// Find the most recent Claude Code session ID for a given working directory.
+    /// Find the most recent Claude Code session ID for a working directory.
+    /// Tries multiple strategies:
+    /// 1. Exact cwd match in ~/.claude/sessions/
+    /// 2. Parent directory match (Claude might cd into a subdirectory)
+    /// 3. Most recent session in the project's git root
     private func findClaudeSessionId(for workingDirectory: String) -> String? {
         let sessionsDir = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".claude/sessions")
@@ -169,20 +181,64 @@ final class StatusPoller {
             includingPropertiesForKeys: [.contentModificationDateKey]
         ) else { return nil }
 
-        var bestMatch: (id: String, date: Date)?
+        // Parse all session files once
+        struct SessionEntry {
+            let sessionId: String
+            let cwd: String
+            let date: Date
+        }
+
+        var entries: [SessionEntry] = []
         for file in files where file.pathExtension == "json" {
             guard let data = try? Data(contentsOf: file),
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let cwd = json["cwd"] as? String,
                   let sessionId = json["sessionId"] as? String else { continue }
+            let date = (try? file.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+            entries.append(SessionEntry(sessionId: sessionId, cwd: cwd, date: date))
+        }
 
-            if cwd == workingDirectory {
-                let date = (try? file.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
-                if bestMatch == nil || date > bestMatch!.date {
-                    bestMatch = (sessionId, date)
-                }
+        // Strategy 1: Exact cwd match (most recent)
+        if let match = entries.filter({ $0.cwd == workingDirectory }).max(by: { $0.date < $1.date }) {
+            return match.sessionId
+        }
+
+        // Strategy 2: Git root match — Claude might have cd'd into a subdirectory
+        if let gitRoot = GitDetector.rootDirectory(for: workingDirectory) {
+            if let match = entries.filter({ $0.cwd.hasPrefix(gitRoot) }).max(by: { $0.date < $1.date }) {
+                return match.sessionId
             }
         }
-        return bestMatch?.id
+
+        // Strategy 3: Working directory is a parent of the session's cwd
+        if let match = entries.filter({ workingDirectory.hasPrefix($0.cwd) || $0.cwd.hasPrefix(workingDirectory) }).max(by: { $0.date < $1.date }) {
+            return match.sessionId
+        }
+
+        return nil
+    }
+
+    /// Find the most recent Amp thread ID for a working directory.
+    /// Scans ~/.amp/file-changes/ directories for thread IDs,
+    /// then matches by checking if threads were active in this directory.
+    private func findAmpThreadId(for workingDirectory: String) -> String? {
+        let fileChangesDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".amp/file-changes")
+        guard let threadDirs = try? FileManager.default.contentsOfDirectory(
+            at: fileChangesDir,
+            includingPropertiesForKeys: [.contentModificationDateKey]
+        ) else { return nil }
+
+        // Get the most recently modified thread directory
+        // Amp thread IDs look like T-019d16e7-c6e5-77a9-be9e-dd5a59f0344b
+        var bestThread: (id: String, date: Date)?
+        for dir in threadDirs where dir.lastPathComponent.hasPrefix("T-") {
+            let date = (try? dir.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+            let threadId = dir.lastPathComponent
+            if bestThread == nil || date > bestThread!.date {
+                bestThread = (threadId, date)
+            }
+        }
+        return bestThread?.id
     }
 }

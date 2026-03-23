@@ -52,18 +52,7 @@ struct SessionRowView: View {
             VStack(alignment: .leading, spacing: 2) {
                 // Line 1: Session name
                 if isEditing {
-                    TextField("Name", text: $editName)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 14))
-                        .foregroundStyle(theme.text.primary.swiftUIColor)
-                        .onSubmit { commitRename() }
-                        .onExitCommand { isEditing = false }
-                        .onAppear {
-                            // Auto-select text on edit start
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                NSApp.keyWindow?.makeFirstResponder(nil)
-                            }
-                        }
+                    RenameTextField(text: $editName, onCommit: { commitRename() }, onCancel: { isEditing = false })
                 } else {
                     Text(session.displayName)
                         .font(.system(size: 14))
