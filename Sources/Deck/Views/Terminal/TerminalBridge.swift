@@ -178,6 +178,7 @@ struct TerminalBridge: NSViewRepresentable {
     class Coordinator: NSObject, LocalProcessTerminalViewDelegate {
         var parent: TerminalBridge
         var hasStarted = false
+        var hasAppliedTheme = false
         init(_ parent: TerminalBridge) { self.parent = parent }
         func sizeChanged(source: LocalProcessTerminalView, newCols: Int, newRows: Int) {}
         func setTerminalTitle(source: LocalProcessTerminalView, title: String) {
@@ -221,10 +222,15 @@ struct TerminalBridge: NSViewRepresentable {
     }
 
     func updateNSView(_ tv: LocalProcessTerminalView, context: Context) {
-        // Do NOT call applyTheme/installColors/set bg/fg here.
-        // Any of these trigger colorsChanged() which clears SwiftTerm's
-        // attribute cache and forces a full redraw, wiping true color cells.
-        // Theme is applied once in makeNSView — that's sufficient.
+        // Apply theme exactly ONCE — on the first updateNSView call.
+        // We can't rely solely on makeNSView because macOS state restoration
+        // may reuse views without calling makeNSView.
+        // We must NOT call installColors repeatedly — it clears SwiftTerm's
+        // 256-color cache, wiping true color rendering.
+        if !context.coordinator.hasAppliedTheme {
+            context.coordinator.hasAppliedTheme = true
+            applyTheme(to: tv)
+        }
 
         context.coordinator.parent = self
         controller.setTerminalView(tv)
