@@ -12,7 +12,7 @@ struct SessionRowView: View {
     let availableGroups: [SessionGroup]
 
     @State private var isHovered = false
-    @State private var isEditing = false
+    @State private var showRenameDialog = false
     @State private var editName: String = ""
     @State private var isDropTarget = false
     @State private var showCloseConfirmation = false
@@ -51,16 +51,12 @@ struct SessionRowView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 // Line 1: Session name
-                if isEditing {
-                    RenameTextField(text: $editName, onCommit: { commitRename() }, onCancel: { isEditing = false })
-                } else {
-                    Text(session.displayName)
-                        .font(.system(size: 14))
-                        .foregroundStyle(isSelected ? theme.text.primary.swiftUIColor : theme.text.secondary.swiftUIColor)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .accessibilityIdentifier(AccessibilityID.sessionName)
-                }
+                Text(session.displayName)
+                    .font(.system(size: 14))
+                    .foregroundStyle(isSelected ? theme.text.primary.swiftUIColor : theme.text.secondary.swiftUIColor)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .accessibilityIdentifier(AccessibilityID.sessionName)
 
                 // Line 2: Status only (agent icon handles type identification)
                 Text(statusSummary)
@@ -72,7 +68,7 @@ struct SessionRowView: View {
 
             Spacer(minLength: 4)
 
-            if isHovered && !isEditing {
+            if isHovered {
                 SidebarIconButton(icon: "xmark", theme: theme) {
                     showCloseConfirmation = true
                 }
@@ -91,15 +87,7 @@ struct SessionRowView: View {
         )
         .contentShape(Rectangle())
         .onHover { isHovered = $0 }
-        .onTapGesture(count: 2) {
-            editName = session.name ?? session.autoName
-            isEditing = true
-        }
-        .onTapGesture(count: 1) {
-            if !isEditing {
-                onSelect()
-            }
-        }
+        .onTapGesture { onSelect() }
         // Drag support
         .draggable(session.id.uuidString) {
             // Drag preview
@@ -117,10 +105,16 @@ struct SessionRowView: View {
                     .shadow(radius: 4)
             )
         }
+        .alert("Rename", isPresented: $showRenameDialog) {
+            TextField("Name", text: $editName)
+            Button("Save") { commitRename() }
+                .keyboardShortcut(.defaultAction)
+            Button("Cancel", role: .cancel) {}
+        }
         .contextMenu {
             Button("Rename") {
                 editName = session.name ?? session.autoName
-                isEditing = true
+                showRenameDialog = true
             }
 
             if !availableGroups.isEmpty {
@@ -148,7 +142,6 @@ struct SessionRowView: View {
     private func commitRename() {
         let trimmed = editName.trimmingCharacters(in: .whitespaces)
         onRename(trimmed)
-        isEditing = false
     }
 
     private var statusSummary: String {
