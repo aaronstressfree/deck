@@ -210,7 +210,14 @@ struct TerminalBridge: NSViewRepresentable {
         applyTheme(to: tv)
         tv.font = Self.resolveFont(themeFont: theme.terminal.fontFamily)
         controller.setTerminalView(tv)
-        startProcess(tv: tv, context: context)
+
+        // Delay process start until the view has a real frame.
+        // SwiftUI creates the view with .zero frame, so the PTY gets 0x0 cols/rows.
+        // Claude Code/Amp see a 0-column terminal and disable color output.
+        // Waiting for layout ensures the PTY has correct dimensions.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            self.startProcess(tv: tv, context: context)
+        }
 
         // Apply initial cursor state
         if isChatMode {
@@ -243,13 +250,20 @@ struct TerminalBridge: NSViewRepresentable {
         let cmd = agentType.command
         let args = agentType.arguments(continueSession: continueSession, resumeSessionId: agentSessionId)
 
-        // Inherit process env, set terminal capabilities, override BROWSER
+        // Build process environment — ensure critical vars are ALWAYS set
+        // even when Deck is launched from Dock with a minimal parent environment
         var envDict = ProcessInfo.processInfo.environment
-        envDict["TERM"] = "xterm-256color"       // Standard terminal type
-        envDict["COLORTERM"] = "truecolor"        // Enable 24-bit true color (orange logo, etc.)
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        envDict["HOME"] = home
+        envDict["USER"] = NSUserName()
+        envDict["SHELL"] = envDict["SHELL"] ?? "/bin/zsh"
+        envDict["LANG"] = envDict["LANG"] ?? "en_US.UTF-8"
+        envDict["TERM"] = "xterm-256color"
+        envDict["COLORTERM"] = "truecolor"
+        envDict["FORCE_COLOR"] = "3"              // Force truecolor in Node.js/Bun apps (chalk/ink)
         envDict["BROWSER"] = SessionManager.browserScriptPath
-        let existingPath = envDict["PATH"] ?? "/usr/bin:/bin"
-        envDict["PATH"] = SessionManager.deckBinDir + ":" + existingPath
+        let existingPath = envDict["PATH"] ?? "/usr/bin:/bin:/usr/local/bin"
+        envDict["PATH"] = SessionManager.deckBinDir + ":" + home + "/.local/bin:/opt/homebrew/bin:/usr/local/bin:" + existingPath
         let env = envDict.map { "\($0.key)=\($0.value)" }
 
         tv.startProcess(executable: cmd, args: args, environment: env,
@@ -278,13 +292,10 @@ struct TerminalBridge: NSViewRepresentable {
         tv.nativeForegroundColor = tc.foreground.nsColor
         tv.selectedTextBackgroundColor = tc.selection.nsColor
 
-        // Install palette on the Terminal engine directly — NOT via tv.installColors().
-        // tv.installColors() clears the 256-color cache (colors = Array(nil, count: 256))
-        // which wipes true color rendering. With 6 sessions in a ZStack, the last one
-        // to call installColors wipes all others' colors.
-        // terminal.installPalette() sets colors without clearing the UI cache.
+        // Use tv.installColors which triggers colorsChanged() → full redraw.
+        // This is needed for true color rendering to work correctly.
         let a = tc.ansi
-        tv.getTerminal().installPalette(colors: [
+        tv.installColors([
             stc(a.black), stc(a.red), stc(a.green), stc(a.yellow),
             stc(a.blue), stc(a.magenta), stc(a.cyan), stc(a.white),
             stc(a.brightBlack), stc(a.brightRed), stc(a.brightGreen), stc(a.brightYellow),
