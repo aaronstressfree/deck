@@ -354,17 +354,16 @@ struct ChatTextField: NSViewRepresentable {
 
         // Auto-grab focus in chat mode.
         // In chat mode, the text view should ALWAYS be first responder so that
-        // Cmd+V (paste), typing, etc. all go to the chat input.
-        // Only exception: if user is interacting with the URL bar or a sheet.
+        // Cmd+V (paste), typing, etc. all go to the chat input — even after
+        // clicking sidebar items, buttons, or other UI elements.
+        // Only exception: URL bar (NSTextField being edited).
         if let window = tv.window {
             let fr = window.firstResponder
             let alreadyFocused = fr === tv
             if !alreadyFocused {
-                // Grab focus from terminal, empty window, or window itself.
-                // Don't steal from URL bar (NSTextField) or other text inputs.
-                let isURLBar = fr is NSTextField
-                let shouldGrabFocus = !isURLBar && (fr == nil || fr === window || fr is TerminalView)
-                if shouldGrabFocus {
+                // Don't steal from actively edited text fields (URL bar, rename fields)
+                let isEditingTextField = fr is NSTextView && fr !== tv && (fr as? NSTextView)?.superview is NSTextField
+                if !isEditingTextField {
                     DispatchQueue.main.async {
                         window.makeFirstResponder(tv)
                     }
