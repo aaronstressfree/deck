@@ -43,11 +43,12 @@ enum AgentType: String, Codable, Hashable, Sendable, CaseIterable {
     func arguments(continueSession: Bool = false, resumeSessionId: String? = nil) -> [String] {
         switch self {
         case .claude:
+            // Export color env vars BEFORE running claude so they're in the process env
+            let exports = "export COLORTERM=truecolor; export FORCE_COLOR=3; export TERM=xterm-256color; export TERM_PROGRAM=ghostty; export CLICOLOR=1;"
             if let id = resumeSessionId {
-                // Try --resume with specific session ID, fall back to fresh start
-                return ["-l", "-i", "-c", "claude --resume '\(id)' || claude || { echo '\\n⚠ claude not found'; exec zsh -l; }"]
+                return ["-l", "-i", "-c", "\(exports) claude --resume '\(id)' || claude || { echo '\\n⚠ claude not found'; exec zsh -l; }"]
             }
-            return ["-l", "-i", "-c", "claude || { echo '\\n⚠ claude not found. Install: npm install -g @anthropic-ai/claude-code'; exec zsh -l; }"]
+            return ["-l", "-i", "-c", "\(exports) claude || { echo '\\n⚠ claude not found. Install: npm install -g @anthropic-ai/claude-code'; exec zsh -l; }"]
         case .amp:
             if let id = resumeSessionId {
                 // Amp uses 'amp threads continue <threadId>'

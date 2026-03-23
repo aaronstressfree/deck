@@ -62,7 +62,23 @@ class DeckAppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Register bundled fonts before any terminal views are created
         registerBundledFonts()
-        NSLog("[DECK] App launched, fonts registered, starting menu install timer")
+
+        // Set terminal color env vars in launchd so future Dock launches
+        // inherit them. Claude Code checks COLORTERM at startup to decide
+        // whether to output true color (24-bit RGB) for its orange logo.
+        // Without this, Dock launches get a minimal env and Claude outputs gray.
+        let setenv = { (key: String, value: String) in
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+            task.arguments = ["setenv", key, value]
+            task.standardOutput = FileHandle.nullDevice
+            task.standardError = FileHandle.nullDevice
+            try? task.run()
+        }
+        setenv("COLORTERM", "truecolor")
+        setenv("TERM", "xterm-256color")
+
+        NSLog("[DECK] App launched, fonts registered, launchd env set")
         try? "launch: \(Date())\n".write(toFile: "/tmp/deck-debug.log", atomically: true, encoding: .utf8)
         // Poll until state objects are available (set by DeckApp body evaluation)
         menuTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] timer in
