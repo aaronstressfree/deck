@@ -221,13 +221,10 @@ struct TerminalBridge: NSViewRepresentable {
     }
 
     func updateNSView(_ tv: LocalProcessTerminalView, context: Context) {
-        // Only update bg/fg/selection — do NOT call installColors here.
-        // installColors clears SwiftTerm's 256-color cache, wiping true color
-        // rendering (like Claude Code's orange logo) on every SwiftUI update.
-        let tc = theme.terminal
-        tv.nativeBackgroundColor = tc.background.nsColor
-        tv.nativeForegroundColor = tc.foreground.nsColor
-        tv.selectedTextBackgroundColor = tc.selection.nsColor
+        // Do NOT call applyTheme/installColors/set bg/fg here.
+        // Any of these trigger colorsChanged() which clears SwiftTerm's
+        // attribute cache and forces a full redraw, wiping true color cells.
+        // Theme is applied once in makeNSView — that's sufficient.
 
         context.coordinator.parent = self
         controller.setTerminalView(tv)
