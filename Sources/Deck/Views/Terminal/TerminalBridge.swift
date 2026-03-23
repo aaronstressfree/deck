@@ -178,7 +178,6 @@ struct TerminalBridge: NSViewRepresentable {
     class Coordinator: NSObject, LocalProcessTerminalViewDelegate {
         var parent: TerminalBridge
         var hasStarted = false
-        var hasAppliedTheme = false
         init(_ parent: TerminalBridge) { self.parent = parent }
         func sizeChanged(source: LocalProcessTerminalView, newCols: Int, newRows: Int) {}
         func setTerminalTitle(source: LocalProcessTerminalView, title: String) {
@@ -222,15 +221,10 @@ struct TerminalBridge: NSViewRepresentable {
     }
 
     func updateNSView(_ tv: LocalProcessTerminalView, context: Context) {
-        // Apply theme exactly ONCE — on the first updateNSView call.
-        // We can't rely solely on makeNSView because macOS state restoration
-        // may reuse views without calling makeNSView.
-        // We must NOT call installColors repeatedly — it clears SwiftTerm's
-        // 256-color cache, wiping true color rendering.
-        if !context.coordinator.hasAppliedTheme {
-            context.coordinator.hasAppliedTheme = true
-            applyTheme(to: tv)
-        }
+        // Re-apply theme — this triggers colorsChanged() which forces a
+        // full redraw with correct true color rendering. Without this,
+        // true color cells rendered after makeNSView don't display correctly.
+        applyTheme(to: tv)
 
         context.coordinator.parent = self
         controller.setTerminalView(tv)
@@ -249,9 +243,10 @@ struct TerminalBridge: NSViewRepresentable {
         let cmd = agentType.command
         let args = agentType.arguments(continueSession: continueSession, resumeSessionId: agentSessionId)
 
-        // Inherit process env, override BROWSER, and prepend ~/.deck/bin to PATH
-        // so Deck's `open` wrapper intercepts URL opens from agents
+        // Inherit process env, set terminal capabilities, override BROWSER
         var envDict = ProcessInfo.processInfo.environment
+        envDict["TERM"] = "xterm-256color"       // Standard terminal type
+        envDict["COLORTERM"] = "truecolor"        // Enable 24-bit true color (orange logo, etc.)
         envDict["BROWSER"] = SessionManager.browserScriptPath
         let existingPath = envDict["PATH"] ?? "/usr/bin:/bin"
         envDict["PATH"] = SessionManager.deckBinDir + ":" + existingPath
@@ -281,10 +276,15 @@ struct TerminalBridge: NSViewRepresentable {
         let tc = theme.terminal
         tv.nativeBackgroundColor = tc.background.nsColor
         tv.nativeForegroundColor = tc.foreground.nsColor
-        // Don't override caretColor here if we're managing it for chat/raw mode
         tv.selectedTextBackgroundColor = tc.selection.nsColor
+
+        // Install palette on the Terminal engine directly — NOT via tv.installColors().
+        // tv.installColors() clears the 256-color cache (colors = Array(nil, count: 256))
+        // which wipes true color rendering. With 6 sessions in a ZStack, the last one
+        // to call installColors wipes all others' colors.
+        // terminal.installPalette() sets colors without clearing the UI cache.
         let a = tc.ansi
-        tv.installColors([
+        tv.getTerminal().installPalette(colors: [
             stc(a.black), stc(a.red), stc(a.green), stc(a.yellow),
             stc(a.blue), stc(a.magenta), stc(a.cyan), stc(a.white),
             stc(a.brightBlack), stc(a.brightRed), stc(a.brightGreen), stc(a.brightYellow),
