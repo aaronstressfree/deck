@@ -91,13 +91,15 @@ struct SessionRowView: View {
         )
         .contentShape(Rectangle())
         .onHover { isHovered = $0 }
-        .simultaneousGesture(TapGesture(count: 2).onEnded {
+        .onTapGesture(count: 2) {
             editName = session.name ?? session.autoName
             isEditing = true
-        })
-        .simultaneousGesture(TapGesture().onEnded {
-            onSelect()
-        })
+        }
+        .onTapGesture(count: 1) {
+            if !isEditing {
+                onSelect()
+            }
+        }
         // Drag support
         .draggable(session.id.uuidString) {
             // Drag preview

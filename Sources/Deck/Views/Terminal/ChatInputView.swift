@@ -344,9 +344,16 @@ struct ChatTextField: NSViewRepresentable {
 
         context.coordinator.parent = self
 
-        // Focus ONLY when explicitly triggered (tab switch, tap on chat bar, file picker close).
-        // Do NOT auto-grab focus on every updateNSView — that steals focus constantly
-        // and breaks copy/paste when the user clicks sidebar, buttons, etc.
+        // Focus grabs:
+        // 1. First time the view has a window — initial focus
+        // 2. When focusTrigger changes (tab switch, tap on chat bar, file picker close)
+        // Do NOT auto-grab on every updateNSView — that breaks clipboard operations.
+        if !context.coordinator.hasInitialFocus && tv.window != nil {
+            context.coordinator.hasInitialFocus = true
+            DispatchQueue.main.async {
+                tv.window?.makeFirstResponder(tv)
+            }
+        }
         if context.coordinator.lastFocusTrigger != focusTrigger {
             context.coordinator.lastFocusTrigger = focusTrigger
             DispatchQueue.main.async {
@@ -360,6 +367,8 @@ struct ChatTextField: NSViewRepresentable {
         weak var textView: NSTextView?
         var lastFocusTrigger: UUID = UUID()
         private var heightDebounce: DispatchWorkItem?
+
+        var hasInitialFocus = false
 
         init(_ parent: ChatTextField) { self.parent = parent }
 
