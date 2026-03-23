@@ -258,7 +258,8 @@ struct TerminalBridge: NSViewRepresentable {
         envDict["LANG"] = envDict["LANG"] ?? "en_US.UTF-8"
         envDict["TERM"] = "xterm-256color"
         envDict["COLORTERM"] = "truecolor"
-        envDict["FORCE_COLOR"] = "3"              // Force truecolor in Node.js/Bun apps (chalk/ink)
+        envDict["TERM_PROGRAM"] = "ghostty"        // Claude Code checks this to enable 24-bit true color
+        envDict["FORCE_COLOR"] = "3"
         envDict["BROWSER"] = SessionManager.browserScriptPath
         let existingPath = envDict["PATH"] ?? "/usr/bin:/bin:/usr/local/bin"
         envDict["PATH"] = SessionManager.deckBinDir + ":" + home + "/.local/bin:/opt/homebrew/bin:/usr/local/bin:" + existingPath

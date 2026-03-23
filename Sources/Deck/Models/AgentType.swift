@@ -40,9 +40,7 @@ enum AgentType: String, Codable, Hashable, Sendable, CaseIterable {
     /// Arguments to pass when spawning.
     /// If `resumeSessionId` is provided, resumes that specific conversation.
     /// Falls back to fresh start if resume fails.
-    /// Arguments to pass when spawning. Fresh start every time —
-    /// no --resume or session persistence. The working directory + CLAUDE.md
-    /// provide all the context needed.
+    /// Arguments to pass when spawning.
     var defaultArguments: [String] {
         switch self {
         case .claude:
