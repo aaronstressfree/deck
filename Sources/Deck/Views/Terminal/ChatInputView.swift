@@ -344,30 +344,13 @@ struct ChatTextField: NSViewRepresentable {
 
         context.coordinator.parent = self
 
-        // Focus when trigger changes (e.g. user tapped the chat bar or file picker closed)
+        // Focus ONLY when explicitly triggered (tab switch, tap on chat bar, file picker close).
+        // Do NOT auto-grab focus on every updateNSView — that steals focus constantly
+        // and breaks copy/paste when the user clicks sidebar, buttons, etc.
         if context.coordinator.lastFocusTrigger != focusTrigger {
             context.coordinator.lastFocusTrigger = focusTrigger
             DispatchQueue.main.async {
                 tv.window?.makeFirstResponder(tv)
-            }
-        }
-
-        // Auto-grab focus in chat mode.
-        // In chat mode, the text view should ALWAYS be first responder so that
-        // Cmd+V (paste), typing, etc. all go to the chat input — even after
-        // clicking sidebar items, buttons, or other UI elements.
-        // Only exception: URL bar (NSTextField being edited).
-        if let window = tv.window {
-            let fr = window.firstResponder
-            let alreadyFocused = fr === tv
-            if !alreadyFocused {
-                // Don't steal from actively edited text fields (URL bar, rename fields)
-                let isEditingTextField = fr is NSTextView && fr !== tv && (fr as? NSTextView)?.superview is NSTextField
-                if !isEditingTextField {
-                    DispatchQueue.main.async {
-                        window.makeFirstResponder(tv)
-                    }
-                }
             }
         }
     }
@@ -420,10 +403,6 @@ struct ChatTextField: NSViewRepresentable {
     }
 }
 
-extension Notification.Name {
-    static let deckPasteInChatInput = Notification.Name("deckPasteInChatInput")
-}
-
 // MARK: - NSTextView subclass with image paste support
 //
 // ⚠️ CLIPBOARD ARCHITECTURE — DO NOT MODIFY WITHOUT TESTING PASTE ⚠️
@@ -446,38 +425,8 @@ extension Notification.Name {
 
 class DeckChatTextView: NSTextView {
     var onImagePaste: ((NSImage, String) -> Void)?
-    private var pasteObserver: NSObjectProtocol?
 
     override var acceptsFirstResponder: Bool { true }
-
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-
-        // Clean up any existing observer
-        if let observer = pasteObserver {
-            NotificationCenter.default.removeObserver(observer)
-            pasteObserver = nil
-        }
-
-        guard window != nil else { return }
-
-        // Fallback paste route: when the text view isn't first responder
-        // but the user presses Cmd+V, the AppMenu can post this notification
-        // to route the paste to the chat input.
-        pasteObserver = NotificationCenter.default.addObserver(
-            forName: .deckPasteInChatInput, object: nil, queue: .main
-        ) { [weak self] _ in
-            guard let self, let window = self.window else { return }
-            window.makeFirstResponder(self)
-            self.paste(nil)
-        }
-    }
-
-    deinit {
-        if let observer = pasteObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
-    }
 
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
